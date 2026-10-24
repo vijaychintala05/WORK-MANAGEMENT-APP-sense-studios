@@ -76,6 +76,42 @@ test("employee creates, refreshes, edits and completes a persisted self-task; un
     const denied = await page.request.get(`/api/v1/tasks/${unrelatedTask.id}`);
     expect(denied.status()).toBe(403);
 
+    // Standalone Tasks register uses the same persisted task and guarded commands.
+    // Verify actual cell/People layout at full width and beside the detail panel.
+    const originalViewport = page.viewportSize();
+    for (const width of [1440, 1280, 1024, 783, 390, 320]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto("/tasks?scope=mine");
+      const open = workspace.getByRole("button", { name: `Open task: ${title}`, exact: true });
+      await expect(open).toBeVisible();
+      await expect(workspace.getByLabel("Task scope")).toHaveCount(1);
+      const row = open.locator("..");
+      const assertLayout = async () => {
+        const main = await open.boundingBox();
+        const people = await row.locator(".task-people-trigger").boundingBox();
+        expect(main && people).toBeTruthy();
+        expect(main!.y + main!.height <= people!.y + 1 || main!.x + main!.width <= people!.x + 1).toBe(true);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      };
+      await assertLayout();
+      const titleBounds = await open.locator("strong").first().boundingBox();
+      expect(titleBounds!.y + titleBounds!.height).toBeLessThan(844 - (width < 700 ? 76 : 0));
+      const searchPadding = await workspace.getByLabel("Search tasks").evaluate(element => Number.parseFloat(getComputedStyle(element).paddingLeft));
+      expect(searchPadding).toBeGreaterThanOrEqual(30);
+      await page.screenshot({ path: testInfo.outputPath(`tasks-register-list-${width}.png`), fullPage: true });
+      await open.click();
+      const next = workspace.getByRole("region", { name: "Next step" });
+      await expect(next.getByRole("button", { name: "Start task", exact: true })).toBeDisabled();
+      await expect(next.getByText(/Enter a reason of at least 3 characters/)).toBeVisible();
+      if (width >= 1024) await assertLayout();
+      const actionBounds = await next.getByRole("button", { name: "Start task", exact: true }).boundingBox();
+      expect(actionBounds!.y + actionBounds!.height).toBeLessThan(844 - (width < 700 ? 76 : 0));
+      await page.screenshot({ path: testInfo.outputPath(`tasks-register-detail-${width}.png`), fullPage: true });
+      await workspace.getByRole("button", { name: "Back to task list" }).click();
+      await expect(open).toBeVisible();
+    }
+    await page.goto(`/tasks?scope=mine&taskId=${taskId}`);
+    await expect(workspace.getByRole("region", { name: "Next step" })).toBeVisible();
     await workspace.getByLabel("Reason for change").fill("Begin the planned task work");
     const transition = page.waitForResponse((response) => response.url().endsWith(`/api/v1/tasks/${taskId}/state`) && response.request().method() === "POST");
     await workspace.getByRole("button", { name: "Start task" }).click();
@@ -84,6 +120,10 @@ test("employee creates, refreshes, edits and completes a persisted self-task; un
     const changed = await db.query<{ status: string; version: number; changeCount: string }>(`SELECT t.status::text,t.version,(SELECT count(*) FROM task_status_changes c WHERE c."taskId"=t.id)::text AS "changeCount" FROM tasks t WHERE t.id=$1`, [taskId]);
     expect(changed.rows[0]).toEqual({ status: "IN_PROGRESS", version: 2, changeCount: "2" });
 
+    // Keep the existing legacy-route journey at its original project viewport.
+    if (originalViewport) await page.setViewportSize(originalViewport);
+    await page.goto(`/workspace?taskId=${taskId}`);
+    await expect(workspace.locator(".task-detail-heading .task-state")).toHaveText("In progress");
     const waitingForm = workspace.getByRole("form", { name: "Wait on task" });
     await waitingForm.getByLabel("Reason for waiting").fill("Waiting for supplier access");
     await waitingForm.getByLabel("Delay cause").fill("Supplier credentials pending");

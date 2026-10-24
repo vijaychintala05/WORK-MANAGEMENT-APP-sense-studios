@@ -17,6 +17,7 @@ describe("ProjectWorkspace", () => {
       if (url.startsWith("/api/v1/projects?")) return response({ total: 1, items: [project] });
       if (url === `/api/v1/projects/${project.id}`) return response({ project, capabilities: {} });
       if (url === `/api/v1/documents/projects/${project.id}`) return response({ project: { id: project.id }, files: [{ id: "file-1", fileName: "Specification.pdf", viewOnly: false }] });
+      if (url.endsWith("/confirmed-drawings")) return response({ items: [] });
       if (url.startsWith("/api/v1/reviews/inbox?")) return response({ total: 0, items: [] });
       return response({}, 404);
     }));
@@ -27,7 +28,8 @@ describe("ProjectWorkspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Documents" }));
     await screen.findByText("Specification.pdf");
     expect(screen.getByRole("link", { name: "Open documents" })).toHaveAttribute("href", `/documents?projectId=${project.id}`);
-    expect(calls.filter(url => url.includes("/reviews/"))).toHaveLength(0);
+    expect(calls.filter(url => url.includes("/reviews/inbox"))).toHaveLength(0);
+    expect(calls.filter(url => url.endsWith("/confirmed-drawings"))).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Reviews" }));
     await screen.findByText("No waiting internal review rounds available to you in this project.");
     expect(screen.queryByText("Specification.pdf")).not.toBeInTheDocument();
@@ -45,6 +47,8 @@ describe("ProjectWorkspace", () => {
       if (url === "/api/v1/project-templates") return response({ templates: [], canManage: false, defaults: { DESIGN: [], TURNKEY: [] } });
       if (url.endsWith("/plan")) return response({ plan: null, items: [], history: [], capabilities: { complete: false, override: false } });
       if (url === "/api/v1/projects/setup") return response({ branches: [branch] });
+      if (url.startsWith("/api/v1/crm/clients?")) return response({ items: [] });
+      if (url.startsWith("/api/v1/crm/leads?")) return response({ items: [{ id: "lead-won-1", title: "Accepted proposal" }], total: 1 });
       if (url.startsWith("/api/v1/projects?")) return response({ total: 0, items: [] });
       if (url === "/api/v1/projects" && init?.method === "POST") return response({ project: { id: "project-1" } }, 201);
       return response({}, 404);
@@ -55,7 +59,7 @@ describe("ProjectWorkspace", () => {
     fireEvent.change(screen.getByLabelText("Project title"), { target: { value: "Studio renovation" } });
     fireEvent.change(screen.getByLabelText("Delivery type"), { target: { value: "TURNKEY" } });
     fireEvent.change(screen.getByLabelText("Initial service scopes"), { target: { value: "Architecture\nInterior design" } });
-    fireEvent.change(screen.getByLabelText("Won lead ID"), { target: { value: "lead-won-1" } });
+    fireEvent.change(await screen.findByLabelText("Won lead"), { target: { value: "lead-won-1" } });
     fireEvent.change(screen.getByLabelText("Creation reason"), { target: { value: "Won proposal accepted" } });
     fireEvent.click(screen.getByRole("button", { name: "Create Draft project" }));
     await waitFor(() => expect(calls.some(([url, init]) => url === "/api/v1/projects" && init?.method === "POST")).toBe(true));
@@ -186,6 +190,7 @@ describe("ProjectWorkspace", () => {
       const url = String(input);
       if (url === "/api/v1/project-templates") return Promise.resolve(response({ templates: [], canManage: false, defaults: { DESIGN: [], TURNKEY: [] } }));
       if (url === "/api/v1/projects/setup") return Promise.resolve(response({ branches: [first, second] }));
+      if (url.startsWith("/api/v1/crm/")) return Promise.resolve(response({ items: [], total: 0 }));
       if (url.includes(`branchId=${first.id}`)) return new Promise<Response>((resolve) => { finishFirst = resolve; });
       if (url.includes(`branchId=${second.id}`)) return Promise.resolve(response({ total: 1, items: [{ id: "new", title: "Pune project", status: "DRAFT", deliveryType: "DESIGN", scopes: [], branch: second }] }));
       return Promise.resolve(response({ total: 0, items: [] }));

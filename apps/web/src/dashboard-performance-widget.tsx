@@ -41,7 +41,10 @@ export function DashboardPerformanceWidget({ context, csrfToken, owner }: { cont
         </div>
       </div>
       {mode === "teams" && <p className="dv-perf-explanation">Average of comparable employee scores in this team for the same policy and period. Detailed team metrics are unavailable.</p>}
-      {mode === "employees" && snapshot.data.components?.map(c => <div className="dv-performance-component" key={c.metric}><span>{c.label ?? c.metric.replace(/_/g, " ")}</span><strong>{c.normalized === null ? "Unavailable" : c.normalized}</strong></div>)}
+      {mode === "employees" && snapshot.data.components?.map((c, index) => <div className="dv-performance-component" key={c.metric}>
+        <div className="dv-perf-component-head"><span>{c.label ?? c.metric.replace(/_/g, " ")}</span><strong>{c.normalized === null ? "—" : c.normalized}</strong></div>
+        {c.normalized !== null && <div className="dv-perf-track" role="img" aria-label={`${c.label ?? c.metric.replace(/_/g, " ")}: ${c.normalized} out of 100`}><i style={{ width: `${Math.min(100, Math.max(0, c.normalized))}%` }} data-tint={index + 1} /></div>}
+      </div>)}
     </>}
     <div className="dv-perf-foot"><Link to="/performance">Open performance workspace →</Link><span>Authorized persisted evidence</span></div>
   </div>;

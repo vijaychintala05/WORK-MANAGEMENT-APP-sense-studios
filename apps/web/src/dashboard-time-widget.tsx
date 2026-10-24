@@ -56,12 +56,12 @@ export function DashboardTimeWidget({ csrfToken, refreshVersion = 0 }: { csrfTok
   return <div className="dv-widget-body dv-time-body">
     {error && <div className="dv-source-error" role="alert"><strong>{error}</strong><button type="button" disabled={pending} onClick={() => void load()}>Refresh timer</button></div>}
     {loading ? <p role="status">Reading time source…</p> : timer ? <div className="dv-time-active">
-      <div className="dv-time-display" data-state={timer.state === "RUNNING" ? "running" : "idle"}>{duration}</div>
-      <p>{timer.workNote} · {timer.state === "RUNNING" ? "Timer running" : "Timer paused"}</p>
+      <div className="dv-time-value"><div className="dv-time-display" data-state={timer.state === "RUNNING" ? "running" : "idle"}>{duration}</div><span className="dv-time-status"><i aria-hidden="true"></i>{timer.state === "RUNNING" ? "Tracking now" : "Paused"}</span></div>
+      {timer.workNote && <p>{timer.workNote}</p>}
       <div className="dv-time-controls"><button type="button" disabled={pending} onClick={() => timerAction(timer.state === "RUNNING" ? "pause" : "resume")}>{timer.state === "RUNNING" ? "Pause" : "Resume"}</button><button type="button" disabled={pending} className="secondary-action" onClick={() => timerAction("stop")}>Stop & save</button></div>
     </div> : setup?.employeeId ? <div className="dv-time-idle">
       <div className="dv-time-display">00:00:00</div>
-      <label className="dv-time-field">Project<select value={projectId} disabled={pending} onChange={e => { setProjectId(e.target.value); setTaskId(""); }}><option value="">Non-project activity</option>{setup.projects?.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+      <label className="dv-time-field">Project<select value={projectId} disabled={pending} onChange={e => { setProjectId(e.target.value); setTaskId(""); setActivityLabel(""); }}><option value="">Non-project activity</option>{setup.projects?.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
       <label className="dv-time-field">Task · optional<select value={taskId} disabled={pending} onChange={e => setTaskId(e.target.value)}><option value="">No linked task</option>{setup.tasks?.filter(t => (t.projectId ?? "") === projectId).map(t => <option key={t.id} value={t.id}>{t.title}</option>)}</select></label>
       {!projectId && <label className="dv-time-field">Non-project activity<input value={activityLabel} maxLength={160} disabled={pending} onChange={e => setActivityLabel(e.target.value)} placeholder="For example, internal coordination" /></label>}
       <label className="dv-time-field">Work note<input value={workNote} maxLength={1000} disabled={pending} onChange={e => setWorkNote(e.target.value)} placeholder="What are you working on?" /></label>

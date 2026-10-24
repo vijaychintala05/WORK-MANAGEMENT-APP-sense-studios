@@ -1,0 +1,302 @@
+/* V10 data presentation. Scope deliberately outranks shared identity/theme
+   panels so the Dashboard stays a paper-card workspace, not one white sheet.
+   Tokens mirror the V10 Refined Shell demo :root (demos/…V10…/reference/…). */
+.app-shell:has(.dashboard-workspace) { font-family: Inter, "Segoe UI", system-ui, sans-serif; }
+.workspace-page:has(.dashboard-workspace) {
+  --sense-canvas: #f4f1e9; --sense-surface: #fffdf7; --sense-surface-muted: #faf8f2;
+  --sense-pine: #182c29; --sense-pine-2: #29463d;
+  --sense-ink: #20332e; --sense-ink-strong: #182c29; --sense-ink-muted: #61736b;
+  --sense-border: #d9d8cd; --sense-border-soft: #e7e5dc;
+  --sense-active: #e3eadf; --sense-gold: #e7c680; --sense-gold-deep: #b98f49;
+  --sense-danger: #a7463b; --sense-danger-bg: #f9eae6;
+  --sense-radius-sm: 9px; --sense-radius-panel: 14px; --sense-radius-lg: 19px;
+  --sense-shadow-panel: 0 9px 28px rgba(34, 51, 44, 0.055);
+  background: var(--sense-canvas);
+}
+.app-shell .workspace-page .identity-section.dashboard-workspace {
+  padding: 0; margin: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none;
+  font: 400 13px/1.5 Inter, "Segoe UI", system-ui, sans-serif;
+}
+.workspace-page .dashboard-workspace { min-width: 0; }
+/* Demo .btn — the dashboard's paper buttons replace the app's global
+   pine buttons (demo: paper bg, soft border, 36px min, 9px radius,
+   11.5px/700 pine text). */
+.workspace-page .dashboard-workspace button {
+  border: 1px solid var(--sense-border, #d9d8cd);
+  border-radius: var(--sense-radius-sm, 9px);
+  background: var(--sense-surface, #fffdf7);
+  color: var(--sense-pine, #182c29);
+  font-size: 11.5px;
+  font-weight: 700;
+  min-height: 36px;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+.workspace-page .dashboard-workspace button:hover:not(:disabled) { background: #eef0e9; }
+.workspace-page .dashboard-workspace button:disabled { opacity: .55; cursor: not-allowed; }
+/* Demo .btn.primary — action pine. */
+.workspace-page .dashboard-workspace button.primary,
+.workspace-page .dashboard-workspace .dv-edit-actions button.primary {
+  background: var(--sense-pine-2, #29463d);
+  border-color: var(--sense-pine-2, #29463d);
+  color: white;
+}
+.workspace-page .dashboard-workspace button.primary:hover:not(:disabled),
+.workspace-page .dashboard-workspace .dv-edit-actions button.primary:hover:not(:disabled) { background: #1c362e; }
+.workspace-page .dashboard-workspace :is(h2, h3, h4, p) { overflow-wrap: anywhere; }
+/* Demo .heading-row / h1 / .heading-sub values. */
+.workspace-page .dashboard-workspace .dashboard-heading h2 { font: 700 27px/1.2 Inter, "Segoe UI", system-ui, sans-serif; letter-spacing: -.85px; margin: 0 0 6px; color: var(--sense-pine, #182c29); }
+.workspace-page .dashboard-workspace .dashboard-heading p { font-size: 12px; color: var(--sense-ink-muted, #61736b); }
+.workspace-page .dashboard-workspace .dashboard-heading { margin: 0 0 19px; align-items: flex-start; }
+/* Demo eyebrow: 10.5px/750, letter-spaced, muted green. */
+.workspace-page .dashboard-workspace .dashboard-heading .eyebrow { color: #62786c; font-size: 10.5px; font-weight: 750; letter-spacing: 1.35px; text-transform: uppercase; margin-bottom: 8px; }
+.workspace-page .dashboard-workspace .dashboard-heading > div { flex: 1; min-width: 0; }
+.workspace-page .dashboard-workspace .dashboard-heading > button { flex: none; }
+.workspace-page .dashboard-workspace .dashboard-tabs { margin: 0 0 16px; padding: 0; gap: 16px; border-radius: 0; border-bottom: 1px solid var(--sense-border); }
+.workspace-page .dashboard-workspace .dashboard-tabs button { min-height: 40px; padding: 8px 0; border: 0; border-radius: 0; font-size: 12px; font-weight: 600; background: transparent; color: #61736b; }
+.workspace-page .dashboard-workspace .dashboard-tabs button[aria-pressed="true"] { color: #29463d; background: transparent; box-shadow: inset 0 -2px #29463d; }
+/* Demo .status-strip: mint surface, 11px radius, 11px green text. */
+.workspace-page .dashboard-workspace .dashboard-summary { margin: 0 0 18px; padding: 10px 13px; gap: 8px 18px; background: #e9eee6; border: 1px solid #d3ded1; border-radius: 11px; font-size: 11px; color: #355c4a; }
+.workspace-page .dashboard-workspace .dashboard-summary span { gap: 8px; }
+.workspace-page .dashboard-workspace .dashboard-summary small { color: #355c4a; font-size: 11px; }
+.workspace-page .dashboard-workspace .dashboard-summary strong { font-size: 11px; color: #355c4a; }
+/* Demo .section-label ("Today at a glance"). */
+.dv-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 22px 0 11px; }
+.dv-section-heading h3 { margin: 0; font-size: 13.5px; font-weight: 700; letter-spacing: -.3px; color: var(--sense-pine, #182c29); }
+.dv-section-heading > span { color: var(--sense-ink-muted, #61736b); font-size: 10.5px; }
+/* Demo .viz-segbar on the mixed attention strip: 11px pill bar with segments. */
+.dv-mix-strip { margin-top: 11px; }
+.dv-mix-strip-bar { display: flex; height: 11px; gap: 2px; overflow: hidden; border-radius: 99px; background: #e9ebe4; }
+.dv-mix-strip-key { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin-top: 7px; color: #667c6f; font-size: 9.5px; line-height: 1.35; }
+.dv-mix-strip-key > span { display: inline-flex; align-items: center; gap: 5px; }
+.dv-mix-strip-key i { display: inline-block; height: 7px; width: 7px; border-radius: 50%; flex: none; }
+/* Demo V10 summary card: 147px min, paper, 14px radius, demo shadow. */
+.workspace-page .dashboard-workspace .dv-summary-card {
+  min-height: 147px; padding: 13px 14px 12px; border: 1px solid var(--sense-border-soft, #e7e5dc);
+  border-radius: var(--sense-radius-panel, 14px); background: var(--sense-surface, #fffdf7);
+  box-shadow: var(--sense-shadow-panel, 0 9px 28px rgba(34, 51, 44, 0.055)); overflow: hidden;
+}
+.workspace-page .dashboard-workspace .dv-summary-top { align-items: center; font-size: 11px; font-weight: 730; color: #526b5e; }
+.workspace-page .dashboard-workspace .dv-summary-top strong { font-size: 11px; font-weight: 730; color: #526b5e; }
+.workspace-page .dashboard-workspace .dv-summary-icon { width: 18px; height: 18px; border-radius: 0; background: transparent; }
+.dv-summary-icon svg { width: 16px; height: 16px; }
+/* Demo .summary-grid: 5 columns, 11px gap; cards lift on hover. */
+.workspace-page .dashboard-workspace .dv-summary-strip { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 11px; }
+.workspace-page .dashboard-workspace .dv-summary-card { transition: border-color .15s ease, transform .15s ease; }
+.workspace-page .dashboard-workspace .dv-summary-card:hover:not(:disabled) { border-color: #95afa0; transform: translateY(-1px); }
+/* Demo: overdue=red, waiting=amber, review=blue; others stay pine. */
+.workspace-page .dashboard-workspace .dv-summary-count { font-size: 35px; font-weight: 750; line-height: 1.15; letter-spacing: -1.3px; margin: 10px 0 3px; color: var(--sense-pine, #182c29); font-variant-numeric: tabular-nums; }
+/* Demo KPI count colors: overdue=danger red, waiting=amber, review=blue; others pine. */
+.workspace-page .dashboard-workspace .dv-summary-overdue .dv-summary-count { color: var(--sense-danger, #a7463b); }
+.workspace-page .dashboard-workspace .dv-summary-waiting .dv-summary-count { color: var(--sense-gold-deep, #b98f49); }
+.workspace-page .dashboard-workspace .dv-summary-reviews .dv-summary-count { color: #416684; }
+/* Demo .foot / subtext. */
+.workspace-page .dashboard-workspace .dv-summary-cue { font-size: 9.5px; line-height: 1.32; color: #63796c; margin-top: auto; }
+/* Demo .viz-segbar: 7px, pill ends, track #e9ebe4, 2px segment gap. */
+.dv-task-mix { margin-top: auto; padding-top: 8px; }
+.dv-task-mix-bar { display: flex; height: 7px; gap: 2px; overflow: hidden; border-radius: 99px; background: #e9ebe4; margin: 7px 0 3px; }
+.dv-task-mix-bar > span { flex-basis: 0; min-width: 2px; background: #b6c4b8; }
+.dv-task-mix-bar > .dv-mix-progress { background: #478366; }
+.dv-task-mix-bar > .dv-mix-waiting { background: #bd9443; }
+.dv-task-mix-bar > .dv-mix-other { background: #c8d3c8; }
+.dv-task-mix-bar > .dv-mix-review { background: #648eaa; }
+.dv-task-mix-bar > .dv-mix-correction { background: #b98f49; }
+.dv-task-mix-label { display: block; margin-top: 5px; padding-right: 10px; font-size: 9px; line-height: 1.35; color: #667c6f; overflow-wrap: anywhere; }
+.workspace-page .dashboard-workspace .dv-summary-arrow { right: 12px; bottom: 10px; }
+.workspace-page .dashboard-workspace .dv-summary-freshness { margin: -3px 0 22px; font-size: 10px; }
+/* Demo .section-label ("Your essentials" / "Today at a glance"). */
+.workspace-page .dashboard-workspace .dv-essentials-heading { margin: 22px 0 11px; align-items: center; }
+.workspace-page .dashboard-workspace .dv-essentials-heading h3 { font-size: 15px; letter-spacing: -.02em; }
+.workspace-page .dashboard-workspace .dv-essentials-heading p { font-size: 11px; }
+/* Demo .dashboard-flow: 14px gutters, independently packed lanes. */
+.workspace-page .dashboard-workspace .dv-widget-grid { grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.4fr); gap: 14px; margin-top: 14px; margin-bottom: 16px; }
+.workspace-page .dashboard-workspace .dv-widget-col { gap: 14px; }
+/* Demo .panel: paper, soft border, 19px radius, demo shadow. */
+.workspace-page .dashboard-workspace .dv-widget { border: 1px solid var(--sense-border-soft, #e7e5dc); border-radius: var(--sense-radius-lg, 19px); background: var(--sense-surface, #fffdf7); box-shadow: var(--sense-shadow-panel, 0 9px 28px rgba(34, 51, 44, 0.055)); }
+/* Demo .panel-head: 17px 18px 14px. */
+.workspace-page .dashboard-workspace .dv-widget-head { padding: 17px 18px 14px; gap: 12px; }
+.dv-widget-heading { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.dv-widget-heading > div { min-width: 0; }
+.dv-widget-mark { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border: 1px solid #dce5d6; background: #edf2e7; border-radius: 9px; color: #4a725d; }
+.dv-widget-mark svg { width: 17px; height: 17px; }
+/* Demo .panel-head h2 / p values. */
+.workspace-page .dashboard-workspace .dv-widget-head h3 { font-size: 14px; font-weight: 700; letter-spacing: -.3px; margin: 0 0 3px; color: var(--sense-pine, #182c29); }
+.workspace-page .dashboard-workspace .dv-widget-head p { font-size: 10.5px; line-height: 1.5; color: var(--sense-ink-muted, #61736b); }
+.workspace-page .dashboard-workspace .dv-widget-body { padding: 14px 16px; gap: 12px; font-size: 12px; }
+.workspace-page .dashboard-workspace .dv-widget-body > p { margin: 4px 0; color: #61736b; line-height: 1.6; }
+.workspace-page .dashboard-workspace .dv-widget-foot { margin: 8px -16px -14px; padding: 12px 16px; font-size: 10px; line-height: 1.4; }
+/* Demo .time-tracker: tighter border + stronger shadow. */
+.workspace-page .dashboard-workspace .dv-widget[data-widget="time"] { border-color: #bdcfbf; box-shadow: 0 10px 27px rgba(24, 44, 41, 0.065); }
+/* Demo .time-hero: subtle mint→paper gradient band at the top of the widget. */
+.workspace-page .dashboard-workspace .dv-widget[data-widget="time"] .dv-widget-head { background: linear-gradient(105deg, #f5f8f0 0%, #fffdf7 66%); border-bottom: 0; }
+/* Demo .time-symbol: 40px rounded square, pale pine on paper. */
+.workspace-page .dashboard-workspace .dv-time-symbol { width: 40px; height: 40px; display: grid; place-items: center; background: #dfece0; border: 1px solid #c8d9c9; border-radius: 12px; color: #2a5c43; flex: none; }
+/* Demo .time-value strong: 28px pine tabular timer. */
+.workspace-page .dashboard-workspace .dv-time-display { font-size: 28px; letter-spacing: .2px; color: var(--sense-pine, #182c29); font-variant-numeric: tabular-nums; line-height: 1; }
+.workspace-page .dashboard-workspace .dv-time-display[data-state="idle"] { color: var(--sense-ink-muted, #61736b); }
+/* Demo .time-field: 9px/760 labels, 35px selects with 8px radius. */
+.workspace-page .dashboard-workspace .dv-time-field { color: #506c58; font-size: 9px; font-weight: 760; }
+.workspace-page .dashboard-workspace .dv-time-field :is(input, select) { min-height: 35px; padding: 6px 9px; background: #fffefa; border: 1px solid #dedfd6; border-radius: 8px; color: #2f4438; font-size: 10.8px; }
+.workspace-page .dashboard-workspace .dv-time-field :is(input, select):disabled { background: #f2f2ee; color: #63756b; }
+/* Demo .time-actions .btn: 35px, 10.3px/700, 8px 12px. */
+.workspace-page .dashboard-workspace .dv-time-body > .dv-time-idle > button { background: var(--sense-pine-2, #29463d); color: #fffdf7; min-height: 35px; border-color: var(--sense-pine-2, #29463d); font-size: 10.3px; }
+/* Demo .time-foot: mint strip, 9.5px, 7px 18px. */
+.workspace-page .dashboard-workspace .dv-time-body > .dv-widget-foot { background: #f2f6ed; border-top: 1px solid #e6ebe1; color: #6d7e72; font-size: 9.5px; padding: 7px 18px; margin: 0 -16px; }
+/* Demo .obligation-chip (amber) and .obligation-chip.review (blue). */
+.workspace-page .dashboard-workspace .dv-decisions-summary { margin: 0; gap: 8px; }
+.workspace-page .dashboard-workspace .dv-decisions-chip { padding: 8px 10px; background: #faf5e9; border-color: #e8e3d5; gap: 8px; }
+.workspace-page .dashboard-workspace .dv-decisions-chip.review { background: #f0f4f6; border-color: #e0e8eb; }
+.workspace-page .dashboard-workspace .dv-decisions-chip strong { color: #8c6526; font-size: 19px; font-weight: 800; }
+.workspace-page .dashboard-workspace .dv-decisions-chip.review strong { color: #416985; }
+.workspace-page .dashboard-workspace .dv-decisions-chip-label { font-size: 10px; font-weight: 700; }
+.workspace-page .dashboard-workspace .dv-decisions-section-label { margin: 2px 0 0; font-size: 10px; }
+.workspace-page .dashboard-workspace .dv-source-loading { padding: 14px 0; font-size: 11px; line-height: 1.5; color: #61736b; }
+.workspace-page .dashboard-workspace .dv-review-rounds { margin: 0; padding-top: 12px; }
+.workspace-page .dashboard-workspace .dv-review-rounds-head strong { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
+.dv-projects-overview { display: flex; align-items: center; gap: 12px; padding: 12px; background: #f0f4eb; border: 1px solid #e2e9db; border-radius: 11px; }
+.dv-projects-overview > strong { font-size: 29px; color: #294f3f; line-height: 1; font-variant-numeric: tabular-nums; }
+.dv-projects-overview > span { font-size: 11px; color: #43624e; }
+.dv-projects-overview small { display: block; margin-top: 4px; color: #61736b; font-size: 10px; }
+.dv-projects-overview svg { width: 21px; height: 21px; margin-left: auto; color: #809c85; flex: none; }
+.workspace-page .dashboard-workspace .dv-projects-grid { gap: 9px; }
+/* Demo .project-chip: 11px radius, 12px padding, 9px gap, 11px/9.7px/9px type. */
+.workspace-page .dashboard-workspace .dv-project-card { border: 1px solid #e4e7df; border-radius: 11px; padding: 11px 12px; background: #fefef9; gap: 7px; min-height: 90px; }
+.workspace-page .dashboard-workspace .dv-project-card:hover { border-color: #92ac98; background: #f5f9f3; }
+.workspace-page .dashboard-workspace .dv-project-top { align-items: flex-start; flex-wrap: wrap; gap: 7px; }
+.workspace-page .dashboard-workspace .dv-project-name { font-size: 11px; line-height: 1.3; color: #294532; font-weight: 700; }
+/* Demo .project-chip-milestone / .project-chip-link. */
+.workspace-page .dashboard-workspace .dv-project-meta { font-size: 9.7px; line-height: 1.4; color: #687c6e; overflow-wrap: anywhere; white-space: normal; overflow: visible; text-overflow: clip; }
+/* Demo .signal-pill: 9px pill, green/amber/red variants. */
+.workspace-page .dashboard-workspace .dv-project-signal { font-size: 9px; white-space: normal; border: 1px solid #dbe4d7; border-radius: 6px; background: #edf3e9; color: #56715a; padding: 3px 7px; }
+.workspace-page .dashboard-workspace .dv-project-signal.attention { color: #a9493a; background: #f8e9e5; border-color: #eecdc6; }
+.workspace-page .dashboard-workspace .dv-project-signal.watch { color: #9a681e; background: #fff1db; border-color: #e8d3ad; }
+.workspace-page .dashboard-workspace .dv-project-signal.on-track { color: #56715a; background: #edf3e9; border-color: #dbe4d7; }
+/* Demo .project-chip-link: green, 9px/750. */
+.workspace-page .dashboard-workspace .dv-project-link { font-size: 9px; font-weight: 750; color: #367b55; margin-top: auto; }
+/* Demo .panel on the fixed attention queue (.attention-bottom). */
+.workspace-page .dashboard-workspace .dv-attention-queue { background: var(--sense-surface, #fffdf7); border-radius: var(--sense-radius-lg, 19px); border: 1px solid var(--sense-border-soft, #e7e5dc); box-shadow: var(--sense-shadow-panel, 0 9px 28px rgba(34, 51, 44, 0.055)); margin-top: 25px; overflow: hidden; }
+/* Demo .panel-head: 17px 18px 14px. */
+.workspace-page .dashboard-workspace .dv-attention-head { padding: 17px 18px 14px; }
+/* Demo .panel-head h2 / p values. */
+.workspace-page .dashboard-workspace .dv-attention-head h3 { font-size: 14px; font-weight: 700; letter-spacing: -.3px; color: var(--sense-pine, #182c29); }
+.workspace-page .dashboard-workspace .dv-attention-head p { font-size: 10.5px; color: var(--sense-ink-muted, #61736b); }
+.workspace-page .dashboard-workspace .dv-attention-body { padding: 0; gap: 0; }
+.workspace-page .dashboard-workspace .dv-attention-row { border: 0; border-bottom: 1px solid #eeede4; border-radius: 0; padding: 12px 0; background: transparent; gap: 10px; }
+.workspace-page .dashboard-workspace .dv-attention-body > .dv-attention-row { padding: 14px 16px; }
+.workspace-page .dashboard-workspace .dv-attention-stripe { align-self: stretch; min-height: 30px; width: 3px; flex: none; }
+.workspace-page .dashboard-workspace .dv-attention-title { font-size: 12px; line-height: 1.45; font-weight: 650; }
+.workspace-page .dashboard-workspace .dv-attention-meta { font-size: 10px; line-height: 1.45; margin-top: 3px; text-transform: none; }
+.workspace-page .dashboard-workspace .dv-attention-due { font-size: 11px; white-space: nowrap; }
+.workspace-page .dashboard-workspace .dv-attention-main { min-width: 0; }
+.workspace-page .dashboard-workspace .dv-attention-title { white-space: normal; overflow-wrap: anywhere; }
+.workspace-page .dashboard-workspace .dv-attention-right { min-width: 0; max-width: 44%; flex-shrink: 1; }
+.workspace-page .dashboard-workspace .dv-attention-chip { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.workspace-page .dashboard-workspace .dv-attention-foot { flex-wrap: wrap; gap: 10px; }
+.workspace-page .dashboard-workspace .dv-attention-actions { flex-wrap: wrap; min-width: 0; }
+.workspace-page .dashboard-workspace .dv-attention-chip { font-size: 9px; }
+.workspace-page .dashboard-workspace .dv-perf-meta { font-size: 11px; line-height: 1.6; }
+.workspace-page .dashboard-workspace .dv-perf-meta small { font-size: 9px; overflow-wrap: anywhere; }
+.workspace-page .dashboard-workspace .dv-perf-foot { font-size: 10px; line-height: 1.4; }
+/* Demo .score-factor / .score-track: 5px pill bars with per-component tints. */
+.workspace-page .dashboard-workspace .dv-performance-component { display: grid; grid-template-columns: minmax(0, 1fr) 20px; gap: 3px 5px; border: 0; padding: 0; font-size: 9.6px; color: #385747; }
+.workspace-page .dashboard-workspace .dv-performance-component strong { font-size: 10px; text-align: right; }
+.workspace-page .dashboard-workspace .dv-perf-component-head { display: flex; justify-content: space-between; align-items: baseline; gap: 5px; }
+.workspace-page .dashboard-workspace .dv-perf-track { height: 5px; border-radius: 5px; background: #e8ede5; overflow: hidden; margin-top: 3px; grid-column: 1 / -1; }
+.workspace-page .dashboard-workspace .dv-perf-track i { display: block; height: 100%; border-radius: 5px; background: #5e9271; }
+.workspace-page .dashboard-workspace .dv-perf-track[data-tint="1"] i { background: #5e9271; }
+.workspace-page .dashboard-workspace .dv-perf-track[data-tint="2"] i { background: #bc9a5e; }
+.workspace-page .dashboard-workspace .dv-perf-track[data-tint="3"] i { background: #567c98; }
+.workspace-page .dashboard-workspace .dv-perf-track[data-tint="4"] i { background: #799c75; }
+.workspace-page .dashboard-workspace .dv-perf-track[data-tint="5"] i { background: #8ca784; }
+/* Demo .v7-performance-tabs: underline tabs, 11px/750. */
+.workspace-page .dashboard-workspace .dv-performance-tabs { display: flex; gap: 5px; padding: 10px 14px 0; border-bottom: 1px solid #ebeee7; background: transparent; }
+.workspace-page .dashboard-workspace .dv-performance-tabs button { appearance: none; cursor: pointer; background: transparent; border: 0; border-bottom: 2px solid transparent; color: #708272; padding: 9px 13px; font-weight: 750; font-size: 11px; display: inline-flex; align-items: center; gap: 6px; min-height: 0; }
+.workspace-page .dashboard-workspace .dv-performance-tabs button[aria-pressed="true"] { border-bottom-color: #285c45; color: #285c45; background: #f2f6ed; border-radius: 8px 8px 0 0; }
+.workspace-page .dashboard-workspace .dv-performance-tabs button:hover:not([aria-pressed="true"]) { color: #315b45; background: #fafbf7; }
+/* Demo .employee-chooser select: 11px/700, 9px radius. */
+.workspace-page .dashboard-workspace .dv-performance-select { display: grid; gap: .3rem; min-width: 0; color: #637767; font-size: 10px; font-weight: 760; }
+.workspace-page .dashboard-workspace .dv-performance-select select { min-width: 0; max-width: 340px; width: 100%; padding: 8px 9px; border: 1px solid #d9ddd4; border-radius: 9px; background: #fff; color: #29453c; font-weight: 700; font-size: 11px; }
+/* Demo .time-value: timer + status pill side by side; .time-state pill.
+   Dashboard-scoped values override the widget-level rules in
+   dashboard.css, so the generic .dot state rules stay there. */
+.workspace-page .dashboard-workspace .dv-time-value { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.workspace-page .dashboard-workspace .dv-time-status { display: inline-flex; align-items: center; gap: 5px; border: 1px solid #dfebe1; background: #f5faf5; color: #5e7768; font-size: 9.5px; font-weight: 700; border-radius: 999px; padding: 5px 9px; white-space: nowrap; }
+.workspace-page .dashboard-workspace .dv-time-status i { width: 6px; height: 6px; border-radius: 50%; background: #8dac96; display: inline-block; flex: none; }
+@media (max-width: 1100px) {
+  .workspace-page .dashboard-workspace .dv-widget-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .workspace-page .dashboard-workspace .dashboard-heading { flex-wrap: wrap; }
+  .workspace-page .dashboard-workspace .dashboard-heading h2 { font-size: 24px; }
+  .workspace-page .dashboard-workspace .dashboard-tabs { gap: 18px; margin-bottom: 12px; }
+  .workspace-page .dashboard-workspace .dashboard-summary { gap: 5px 16px; padding: 9px 10px; margin-bottom: 14px; }
+  .dv-section-heading > span { display: none; }
+  .workspace-page .dashboard-workspace .dv-summary-strip { grid-auto-columns: minmax(132px, 41%); }
+  .workspace-page .dashboard-workspace .dv-summary-card { min-height: 136px; padding: 11px; }
+  .workspace-page .dashboard-workspace .dv-summary-count { font-size: 28px; margin-top: 8px; }
+  .workspace-page .dashboard-workspace .dv-summary-top strong { font-size: 10px; }
+  .workspace-page .dashboard-workspace .dv-summary-cue { font-size: 9px; }
+  .workspace-page .dashboard-workspace .dv-widget-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .workspace-page .dashboard-workspace .dv-essentials-heading { align-items: flex-start; }
+  .workspace-page .dashboard-workspace .dv-essentials-heading p { max-width: 195px; }
+  .workspace-page .dashboard-workspace .dv-widget-head { padding: 14px; }
+  .workspace-page .dashboard-workspace .dv-widget-body { padding: 12px 14px; }
+  .workspace-page .dashboard-workspace .dv-widget-foot { margin: 8px -14px -12px; padding: 11px 14px; }
+  .workspace-page .dashboard-workspace .dv-projects-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .workspace-page .dashboard-workspace .dv-widget.is-editing .dv-widget-heading { flex: 1 0 100%; }
+}
+@media (max-width: 355px) {
+  .workspace-page .dashboard-workspace .dv-projects-grid { grid-template-columns: minmax(0, 1fr); }
+  .workspace-page .dashboard-workspace .dv-attention-body > .dv-attention-row { flex-wrap: wrap; }
+  .workspace-page .dashboard-workspace .dv-attention-right { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; flex: 1 0 100%; max-width: 100%; }
+  .workspace-page .dashboard-workspace .dv-attention-foot { flex-direction: column; align-items: flex-start; }
+  .workspace-page .dashboard-workspace .dv-attention-actions { flex-direction: column; align-items: flex-start; }
+}
+
+/* DASH-RESP: content-width reflow overrides the older five-column and phone
+   carousel rules. Keep all five independent summaries and their full evidence. */
+#root .dashboard-workspace .dv-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  grid-auto-flow: row;
+  grid-auto-columns: auto;
+  gap: 12px;
+  overflow: visible;
+  scroll-snap-type: none;
+  align-items: stretch;
+}
+#root .dashboard-workspace .dv-summary-card {
+  min-width: 0;
+  min-height: 176px;
+  height: auto;
+  padding: 16px;
+  scroll-snap-align: none;
+}
+#root .dashboard-workspace .dv-summary-top strong { font-size: 14px; line-height: 1.4; }
+#root .dashboard-workspace .dv-summary-cue,
+#root .dashboard-workspace .dv-task-mix-label { font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+#root .dashboard-workspace .dv-task-mix-label { padding-right: 24px; }
+#root .dashboard-workspace .dv-summary-arrow { right: 16px; bottom: 16px; }
+@media (max-width: 600px) {
+  #root .dashboard-workspace .dv-summary-strip { grid-template-columns: minmax(0, 1fr); }
+  #root .dashboard-workspace .dv-summary-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "title count" "cue count" "mix mix";
+    align-content: start;
+    align-items: start;
+    gap: 6px 12px;
+    min-height: 120px;
+    padding: 14px;
+  }
+  #root .dashboard-workspace .dv-summary-top { grid-area: title; justify-content: flex-start; gap: 8px; }
+  #root .dashboard-workspace .dv-summary-count { grid-area: count; margin: 0; font-size: 32px; line-height: 1.15; text-align: right; }
+  #root .dashboard-workspace .dv-summary-cue { grid-area: cue; }
+  #root .dashboard-workspace .dv-task-mix { grid-area: mix; margin-top: 0; padding-top: 0; min-width: 0; }
+  #root .dashboard-workspace .dv-summary-unavailable { grid-area: count; font-size: 14px; max-width: 7rem; }
+  #root .dashboard-workspace .dv-summary-skeleton { grid-area: count; margin: 0; }
+}

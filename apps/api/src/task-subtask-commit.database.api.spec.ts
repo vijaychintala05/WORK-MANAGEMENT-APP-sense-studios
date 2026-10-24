@@ -1,3 +1,4 @@
+import { reviewRoutingTestTarget, verifyReviewRoutingTestDatabase } from "./review-routing-test-target.js";
 import "reflect-metadata";
 import { randomUUID } from "node:crypto";
 import { DatabaseService } from "./database.service.js";
@@ -20,6 +21,11 @@ const dbDescribe = databaseUrl ? describe : describe.skip;
 dbDescribe("Current subtask commit and deferred evidence acceptance", () => {
   let database: DatabaseService;
   beforeAll(async () => {
+    if (process.env.SENSE_REVIEW_ROUTING_TEST_RUN) {
+      const owned = reviewRoutingTestTarget(resolve(process.cwd(), "../.."), "DATABASE_URL");
+      database = new DatabaseService({ nodeEnv: "test", databaseUrl: owned.url, port: 4000, webOrigin: "http://localhost:59443" } as RuntimeConfig);
+      await verifyReviewRoutingTestDatabase(database.prisma, owned); return;
+    }
     const recovery = process.env.SENSE_RECOVERY_TEST_MANIFEST ? loadRecoveryTestTarget(process.env, resolve(process.cwd(), "../.."), "DATABASE_URL") : undefined;
     const ci119 = process.env.GITHUB_ACTIONS === "true" && /^\d+$/.test(process.env.GITHUB_RUN_ID ?? "") && process.env.S27_EXPECTED_MIGRATIONS === "119" && isS27DisposableTestTarget("DATABASE_URL", databaseUrl);
     if (!recovery && !ci119 && (!isS27DisposableTestTarget("DATABASE_URL", databaseUrl) || !databaseUrl?.includes("sense_s27_main_s27_1791849600000_ac13_test"))) throw new Error("Exact newly authorized acceptance target required");

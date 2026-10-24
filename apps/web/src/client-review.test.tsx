@@ -140,7 +140,7 @@ describe("internal client review publishing", () => {
     render(<StaffClientReviewWorkspace csrfToken="staff-csrf" owner />);
     fireEvent.change(await screen.findByLabelText("Package title"), { target: { value: "Client set 1" } });
     fireEvent.change(screen.getByLabelText("Task"), { target: { value: "task-1" } });
-    fireEvent.change(screen.getByLabelText("Internal R or CR revision (optional)"), { target: { value: "revision-1" } });
+    fireEvent.change(screen.getByLabelText("Approved evidence"), { target: { value: "revision-1" } });
     fireEvent.change(screen.getByLabelText("Client label"), { target: { value: "Sheet A101" } });
     fireEvent.change(screen.getByLabelText("Reason"), { target: { value: "Ready for client" } });
     fireEvent.click(screen.getByRole("button", { name: "Send for client review" }));

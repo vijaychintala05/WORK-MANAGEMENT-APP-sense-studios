@@ -130,7 +130,7 @@ test("S26 Owner saves a report and scoped event rule, then reviews an event gene
   const taskResponse = await page.request.post("/api/v1/tasks", { headers: { "X-CSRF-Token": csrf, Origin: new URL(baseURL!).origin }, data: { title: `S26 source event ${suffix}`, type: "NON_PROJECT", priority: "LOW", targetDate: taskDate, ownerEmployeeId: employeeId, reason: "S26 event driven automation browser acceptance" } });
   expect(taskResponse.status()).toBe(201);
   await new Promise<void>((resolveBatch, rejectBatch) => {
-    const helper = resolve(process.env.SENSE_RECOVERY_TEST_MANIFEST && disposableS27Database ? "scripts/ci/run-aut-batch-s27.mjs" : explicitlyEnabledS27Database ? ".env.s27-tools/run-aut-batch-s27.mjs" : ".env.s26-tools/run-aut-batch.mjs");
+    const helper = resolve(process.env.SENSE_REVIEW_ROUTING_TEST_RUN ? "scripts/acceptance/review-routing-aut-batch.mjs" : process.env.SENSE_RECOVERY_TEST_MANIFEST && disposableS27Database ? "scripts/ci/run-aut-batch-s27.mjs" : explicitlyEnabledS27Database ? ".env.s27-tools/run-aut-batch-s27.mjs" : ".env.s26-tools/run-aut-batch.mjs");
     const child = spawn(process.execPath, [helper, fixtureEnvironment], { cwd: process.cwd(), env: process.env, windowsHide: true, shell: false, stdio: ["ignore", "ignore", "pipe"] });
     let stderr = "";
     child.stderr?.setEncoding("utf8").on("data", (chunk: string) => { stderr += chunk; });
@@ -169,7 +169,7 @@ test("S26 Owner saves a report and scoped event rule, then reviews an event gene
   const taskBeforeDecision = await readTaskState(recommendationTaskTitle);
   if (!taskBeforeDecision) throw new Error("S26 recommendation source task was not persisted");
   await new Promise<void>((resolveBatch, rejectBatch) => {
-    const helper = resolve(process.env.SENSE_RECOVERY_TEST_MANIFEST && disposableS27Database ? "scripts/ci/run-aut-batch-s27.mjs" : explicitlyEnabledS27Database ? ".env.s27-tools/run-aut-batch-s27.mjs" : ".env.s26-tools/run-aut-batch.mjs");
+    const helper = resolve(process.env.SENSE_REVIEW_ROUTING_TEST_RUN ? "scripts/acceptance/review-routing-aut-batch.mjs" : process.env.SENSE_RECOVERY_TEST_MANIFEST && disposableS27Database ? "scripts/ci/run-aut-batch-s27.mjs" : explicitlyEnabledS27Database ? ".env.s27-tools/run-aut-batch-s27.mjs" : ".env.s26-tools/run-aut-batch.mjs");
     const child = spawn(process.execPath, [helper, fixtureEnvironment], { cwd: process.cwd(), env: process.env, windowsHide: true, shell: false, stdio: ["ignore", "ignore", "pipe"] });
     let stderr = "";
     child.stderr?.setEncoding("utf8").on("data", (chunk: string) => { stderr += chunk; });

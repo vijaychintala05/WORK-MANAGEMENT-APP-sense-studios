@@ -35,6 +35,8 @@ The hidden launcher runs the generated local PowerShell script with process-only
 
 The supervisor verifies its OS process identities, fixed loopback listeners, exact successful migration/checksum ledger, retained database identity, canonical file root and artifact integrity. It refuses unrelated occupied ports or contradictory database ownership. Child restarts are bounded; exhausted retry/log budgets persist `REQUIRES_ACTION` and preserve evidence. Stop uses a token-bound request and stops only owned app children; retained PostgreSQL data are kept.
 
+On21October host CPU saturation exposed BelowNormal task/child scheduling: retained database connection attempts exceeded the unchanged4-second preflight budget. The current task was changed from its default priority7 to6 (Normal), with XML and exact-process receipts preserved; its action/principal/triggers/other settings were unchanged. Only the verified retained PostgreSQL and already-running canonical launcher families were normalized, with no database restart or migration. Three identical probes then passed54/188/199ms, followed by actual app/supervisor recovery. Future recreation must preserve the reviewed Normal priority. This is a recorded host setting, not a production performance guarantee. Read-only Windows inspections retry one actual OS query timeout; permission errors, exhausted timeouts and wrong identities still fail closed. Task mutations/mutex claims are not replayed.
+
 ## Cache and release verification
 
 The visible release footer and `/release.json` identify the web build. `/api/v1/health/release` exposes only public API commit/build/time/schema count; `/api/v1/health/ready` additionally validates the full database identity and successful migration ledger. A mismatch/unavailable API is visible without automatically discarding drafts or reloading a page.
@@ -42,3 +44,27 @@ The visible release footer and `/release.json` identify the web build. `/api/v1/
 The staging worker checks the network for navigation, retains a release-specific offline fallback and never caches API responses. Updates use the existing explicit saved-work/other-window/pending-capture guard. A genuinely old cached shell cannot retroactively display the new footer. The historical-worker rehearsal required one explicit hard reload: save current work first, then use Ctrl+Shift+R while online and confirm the matching version footer. Close and reopen to verify the result. Do not clear browser storage; pending site captures and local drafts must remain intact. The rehearsal used isolated persistent profiles, not the user's personal browser profile.
 
 Record actual deployed identity, tests, source/artifact fingerprints and remaining limitations in the recovery acceptance report. This document describes the controlled implementation; actual startup, cache, role, persistence and reboot results must be recorded separately.
+
+## V10 Dashboard operation
+
+V10 uses the existing `/dashboard` route. Five task summaries remain fixed and independent; their counts overlap. Links open the owning task workspace. Loading shows “Reading…” or “Loading…”; failed/missing evidence shows unavailable. Neither is a confirmed zero. The final Attention queue deduplicates task IDs and initially shows two rows.
+
+Use **Edit widgets** to move, hide, add or reset widgets, then **Done**. On mobile, a long press on a noninteractive widget surface also opens editing. Preferences contain only widget IDs/order and are separate for each account and desktop/mobile mode on this device. Storage failure preserves edits for the current visit and displays a notice. Current permissions still filter visible widgets.
+
+Time tracking uses ordinary Time commands and persistence. Select a project/task or supply the required non-project activity label, then a work note. Owner accounts without an employee identity use the existing Time workspace for management. Refresh rereads timer state without discarding an idle note. An uncertain same-input retry retains its command identity; pause/resume/stop use separate commands and current versions.
+
+Performance shows only authorized management subjects and persisted scores. Owner Teams view uses the existing API's comparable employee-score cohort average for the selected employee's team, policy and period. Separate Team metric averages are unavailable; no browser calculation supplies them. Ordinary employees use the existing Performance workspace for their own authorized evidence.
+
+The page finder searches known workspace destinations with Ctrl/Cmd+K; it does not search protected task/project content. New task opens the existing permission-checked task dialog. Confirm the current matched release footer after an upgrade; save work before any explicit reload and never clear browser storage to force an update.
+
+## Shared navigation breakpoint and Dashboard refinement
+
+The mobile bottom bar belongs below768px. The shared desktop sidebar takes over at768px, regardless of collapsed preference. Keep later decorative rules free of unconditional display overrides. Run node scripts/recovery/navigation-responsive.mjs from the repository root after shell styling changes. Summary bars use only each readable source section; overlapping task cards are not a combined total. Unavailable evidence remains unavailable. Current exact local/hosted boundaries are recorded in V10_DATA_NAVIGATION_ACCEPTANCE_2026-10-22.md.
+
+## Approved task-review schema120 activation — 23 October2026
+
+The Owner explicitly approved migration20261023000000_task_review_work_routing and matched release9f1da4b140c005586dc909810ba267a2c156c500. Canonical runtime now requires120 with profile task-review-work-routing-20261023; web/API build9f1da4b140c0-1792732431728 and retained identity/readiness are verified. This is separate from the excluded client-password120. The installed bootstrap manifest supports the reviewed profile; predecessor/config/task backups are preserved. Do not point the120 retained database at a119 artifact or run an automatic down-migration. Future migrations still require their own authorization. Exact preservation and browser/production limits are recorded in docs/development/TASK_REVIEW_ROUTING_COMPLETION_2026-10-23.md.
+
+## My Work team/employee scopes
+
+My Work contains personal obligations; All teams reads existing authorized tasks with primary-owner current-home-Team and employee filters. Team changes clear the employee; scope changes clear personal metrics and preserve the existing unsaved-drawer guard. Owner scope is organization-wide; Leader/manager scope never expands beyond current grants/reporting/project visibility. Production rules and task-review120 remain unchanged. Exact local acceptance and failed-run boundaries: MY_WORK_MANAGEMENT_SCOPES_2026-10-23.md.

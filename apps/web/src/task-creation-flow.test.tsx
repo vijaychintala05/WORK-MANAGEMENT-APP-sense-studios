@@ -38,6 +38,24 @@ async function fillTask() {
   return { dialog, form };
 }
 describe("confirmed task creation and recoverable drafts", () => {
+  it("focuses invalid fields without leaving a dirty form and still guards navigation away", async () => {
+    const mock = installApi("success"), confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<><a href="/projects">Leave for projects</a><TaskWorkspace csrfToken="csrf" owner listFirst personalOnly /></>);
+    const { form } = await fillTask();
+    fireEvent.change(within(form).getByLabelText("Task name"), { target: { value: "" } });
+    fireEvent.submit(form);
+    const summary = within(form).getByRole("alert");
+    fireEvent.click(within(summary).getByRole("link", { name: "Task name must be between 2 and 160 characters." }));
+    expect(within(form).getByLabelText("Task name")).toHaveFocus();
+    expect(within(form).getByLabelText("Reason")).toHaveValue("Coordinate the agreed delivery work");
+    expect(confirm).not.toHaveBeenCalled();
+    expect(form).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("link", { name: "Leave for projects" }));
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved new task details?");
+    expect(form).toBeInTheDocument();
+    expect(mock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
+  });
+
   it("consumes the shell create intent only after authoritative creation access is available", async () => {
     installApi("success"); window.history.replaceState(null, "", "/tasks?create=1");
     render(<TaskWorkspace csrfToken="csrf" owner accountId="owner" listFirst />);

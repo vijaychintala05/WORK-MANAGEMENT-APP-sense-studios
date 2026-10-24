@@ -325,7 +325,7 @@ databaseDescribe("S23 performance PostgreSQL acceptance", () => {
       });
       const assigned = await f.reviews.assignReviewer(f.owner, qualityTask.id, { employeeId: f.peer.employeeId, expectedVersion: qualityTask.version, reason: "Assign independent reviewer for quality metric" });
       await f.tasks.transition(f.employee.actor, qualityTask.id, { toState: "IN_PROGRESS", expectedVersion: assigned.version, reason: "Start reviewed quality task" });
-      const submitted = await f.reviews.submit(f.employee.actor, qualityTask.id, { expectedVersion: (await f.tx.task.findUniqueOrThrow({ where: { id: qualityTask.id } })).version, reason: "Submit real quality source for review" });
+      const submitted = await f.reviews.submit(f.employee.actor, qualityTask.id, { reviewUrl: "https://files.sensestudios.com/performance/quality-source", expectedVersion: (await f.tx.task.findUniqueOrThrow({ where: { id: qualityTask.id } })).version, reason: "Submit real quality source for review" });
       const reviewRound = submitted.rounds[0]!;
       await f.reviews.start(f.peer.actor, reviewRound.id, "Begin independent quality source review");
       await f.reviews.decision(f.peer.actor, reviewRound.id, { kind: "APPROVED", reason: "Approve real quality evidence source" });

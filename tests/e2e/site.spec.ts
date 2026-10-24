@@ -260,7 +260,7 @@ test("site reports, independent snag repair and handover persist across refresh"
     const dashboardReady = page.waitForResponse(response => new URL(response.url()).pathname === "/api/v1/dashboard/sources/site" && response.request().method() === "GET", { timeout: 30_000 });
     await page.goto("/dashboard");
     expect((await dashboardReady).status()).toBe(200);
-    await expect(page.getByRole("heading", { name: "Dashboard", exact: true, level: 2 })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard", exact: true, level: 1 })).toBeVisible({ timeout: 30_000 });
     // V10 keeps Site as an optional Owner widget. Exercise the real gallery
     // before checking the same persisted project facts as the earlier panel.
     await page.getByRole("button", { name: "Edit widgets", exact: true }).click();

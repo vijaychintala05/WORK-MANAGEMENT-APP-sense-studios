@@ -82,7 +82,7 @@ suite("S25 real PostgreSQL calendar scope and immutable evidence",()=>{
   const task=await f.tasks.create(f.owner,{title:"Sensitive review title",type:"PROJECT",projectId:f.projectId,ownerEmployeeId:f.employeeId,priority:"HIGH",targetDate:"2026-10-21",reviewRequirement:"INTERNAL",reason:"Create actual review source"});
   await f.reviews.assignReviewer(f.owner,task.id,{employeeId:reviewer.id,expectedVersion:1,reason:"Name independent reviewer"});
   await f.tasks.transition(f.staff,task.id,{toState:"IN_PROGRESS",expectedVersion:2,reason:"Start review source work"});
-  await f.reviews.submit(f.staff,task.id,{expectedVersion:3,reason:"Submit source for named review"});
+  await f.reviews.submit(f.staff,task.id,{reviewUrl:"https://files.sensestudios.com/integration/review-source",expectedVersion:3,reason:"Submit source for named review"});
   const before=await f.service.calendar(f.other);expect(before.events.filter(event=>event.kind==="REVIEW_ASSIGNMENT")).toHaveLength(1);expect(before.events.find(event=>event.kind==="REVIEW_ASSIGNMENT")?.start).toBe("2026-10-21");expect(serializeCalendar(before.events)).not.toContain("Sensitive review title");
   await f.tx.employeePermissionOverride.create({data:{organizationId:f.owner.organizationId,employeeId:reviewer.id,permissionKey:"review.decide",effect:"DENY",scopeKind:"BRANCH",branchId:project.branchId,reason:"Revoke current review performing grant"}});expect((await f.service.calendar(f.other)).events.filter(event=>event.kind==="REVIEW_ASSIGNMENT")).toHaveLength(0);
  }));

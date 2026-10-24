@@ -87,7 +87,7 @@ test("Owner passkey enrollment, desktop and mobile login, session restore, and l
     await expect(mobilePage).toHaveURL(/\/dashboard(?:\?.*)?$/);
     await expect(mobilePage.getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible();
     await mobilePage.goto("/my-work");
-    await expect(mobilePage.getByRole("heading", { name: "My work", exact: true, level: 2 })).toBeVisible();
+    await expect(mobilePage.getByRole("heading", { name: "My work", exact: true, level: 1 })).toBeVisible();
     // Identity enrollment has not created an organization. Do not turn denied
     // source reads into invented empty counts; domain fixtures cover ready work.
     await expect(mobilePage.getByRole("alert").filter({hasText:"You do not have access to these tasks."})).toBeVisible();
@@ -103,7 +103,7 @@ test("Owner passkey enrollment, desktop and mobile login, session restore, and l
     await expect(mobilePage).toHaveURL(/\/dashboard(?:\?.*)?$/);
     await expect(mobilePage.getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible();
     await mobilePage.goto("/my-work");
-    await expect(mobilePage.getByRole("heading", { name: "My work", exact: true, level: 2 })).toBeVisible();
+    await expect(mobilePage.getByRole("heading", { name: "My work", exact: true, level: 1 })).toBeVisible();
 
     await desktop.addCookies(await mobile.cookies());
     await desktopPage.goto("/workspace");
@@ -115,7 +115,7 @@ test("Owner passkey enrollment, desktop and mobile login, session restore, and l
     await expect(desktopPage).toHaveURL(/\/dashboard(?:\?.*)?$/);
     await expect(desktopPage.getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible();
     await desktopPage.goto("/my-work");
-    await expect(desktopPage.getByRole("heading", { name: "My work", exact: true, level: 2 })).toBeVisible();
+    await expect(desktopPage.getByRole("heading", { name: "My work", exact: true, level: 1 })).toBeVisible();
   } finally {
     await desktop.close();
     await mobile.close();

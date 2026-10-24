@@ -114,6 +114,7 @@ export const DOMAIN_EVENT_CATALOGUE = {
   "task.completed": { producer: "S09 tasks", subjectType: "task", schemaVersion: 1 },
   "task.deadline_changed": { producer: "S09 tasks", subjectType: "task", schemaVersion: 1 },
   "task.dependency_completed": { producer: "S10 task dependencies", subjectType: "task", schemaVersion: 1 },
+  "review.routing_changed": { producer: "Task review routing", subjectType: "review_routing", schemaVersion: 1 },
   "review.requested": { producer: "S13 review", subjectType: "review", schemaVersion: 1 },
   "review.started": { producer: "S13 review", subjectType: "review", schemaVersion: 1 },
   "review.correction_requested": { producer: "S13 review", subjectType: "review", schemaVersion: 1 },

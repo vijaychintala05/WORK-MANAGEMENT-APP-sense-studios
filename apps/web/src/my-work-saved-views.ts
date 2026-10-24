@@ -1,7 +1,7 @@
 import { TASK_LIST_SORT_VALUES, type TaskListSort } from "@sense/contracts";
 import { taskRefinementError } from "./task-query-refinements.js";
 export type MyWorkSnapshot = {
-  filters: { priorities?: string; collaboratorEmployeeIds?: string; q: string; projectId: string; planItemId: string; ownerEmployeeId: string; status: string; phase: string; dateBasis: string; dateFrom: string; dateTo: string; sort: TaskListSort };
+  filters: { priorities?: string; collaboratorEmployeeIds?: string; teamId?: string; q: string; projectId: string; planItemId: string; ownerEmployeeId: string; status: string; phase: string; dateBasis: string; dateFrom: string; dateTo: string; sort: TaskListSort };
   view: "list" | "cards" | "board" | "timeline";
   compact: boolean;
   temporaryPhase: "" | "active" | "waiting" | "review" | "completed" | "overdue" | "reviews" | "attention";
@@ -22,8 +22,9 @@ function date(value: string): boolean {
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 export function isMyWorkSnapshot(value: unknown): value is MyWorkSnapshot {
-  if (!object(value) || !exact(value, ["filters", "view", "compact", "temporaryPhase"]) || !object(value.filters) || !filterKeys.every(key => Object.hasOwn(value.filters as object, key)) || !Object.keys(value.filters).every(key => [...filterKeys, "priorities", "collaboratorEmployeeIds"].includes(key))) return false;
+  if (!object(value) || !exact(value, ["filters", "view", "compact", "temporaryPhase"]) || !object(value.filters) || !filterKeys.every(key => Object.hasOwn(value.filters as object, key)) || !Object.keys(value.filters).every(key => [...filterKeys, "priorities", "collaboratorEmployeeIds", "teamId"].includes(key))) return false;
   const f = value.filters;
+  if (f.teamId !== undefined && f.teamId !== "" && !uuid(f.teamId)) return false;
   if (!filterKeys.every(key => typeof f[key] === "string") || ["priorities", "collaboratorEmployeeIds"].some(key => f[key] !== undefined && typeof f[key] !== "string") || taskRefinementError(f as { priorities?: string; collaboratorEmployeeIds?: string })) return false;
   const strings = f as Record<string, string>;
   return strings.q!.length <= 160 && ["projectId", "planItemId", "ownerEmployeeId"].every(key => strings[key] === "" || uuid(strings[key]))

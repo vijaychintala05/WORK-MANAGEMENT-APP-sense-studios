@@ -1,3 +1,4 @@
+import { ReviewRoutingService } from "./review-routing.service.js";
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module.js";
@@ -82,7 +83,14 @@ async function bootstrap(): Promise<void> {
   const automationProcessing=setInterval(()=>void runAutomation(),60_000);
   const dashboardProcessing=setInterval(()=>void runDashboard(),60_000);
 
+  const reviewRouting = app.get(ReviewRoutingService);
+  let routingRunning = false;
+  const runRouting = async () => { if (routingRunning) return; routingRunning = true; try { await health.track("review-routing", 5 * 60_000, () => reviewRouting.runBatch()); } catch { console.error("Review routing processing failed."); } finally { routingRunning = false; } };
+  void runRouting();
+  const reviewRoutingProcessing = setInterval(() => void runRouting(), 5_000);
+
   const shutdown = async (): Promise<void> => {
+    clearInterval(reviewRoutingProcessing);
     clearInterval(interval);
     clearInterval(identityCleanup);
     clearInterval(notificationDelivery);

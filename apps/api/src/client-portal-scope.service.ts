@@ -1,3 +1,4 @@
+import { assertClientEvidenceFile, submittedEvidence } from "./review-work-evidence.js";
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { AccountKind, AccountState, EmployeeState, Prisma, ProjectStatus } from "./generated/prisma/client.js";
 import { DatabaseService } from "./database.service.js";
@@ -54,6 +55,12 @@ export class ClientPortalScopeService {
     const permission = context.grant.primary ? flags : await tx.clientItemGrant.findUnique({ where: { portalGrantId_itemId: { portalGrantId: context.grant.id, itemId } } });
     if (!permission || !permission.view || !permission[action]) throw new ForbiddenException("This item permission is required");
     if (preview.organizationId !== context.project.organizationId) throw new NotFoundException("Review item not found");
+    const evidence = submittedEvidence(preview.snapshot);
+    if (evidence) await assertClientEvidenceFile(tx, context.project.organizationId, context.project.id, evidence);
+    if (evidence?.fileId) {
+      const blob = await tx.fileBlobMetadata.findFirst({ where: { id: evidence.blobId!, documentId: evidence.fileId, organizationId: context.project.organizationId, sha256: evidence.sha256! }, include: { document: true } });
+      if (!blob || blob.document.projectId !== context.project.id || blob.document.confidential || !["application/pdf", "image/png", "image/jpeg", "image/gif", "image/webp"].includes(blob.mimeType) || action === "download" && blob.document.viewOnly) throw new ForbiddenException("This evidence is unavailable with current file access");
+    }
     if (context.project.status === ProjectStatus.CANCELLED) {
       if (!["view", "download"].includes(action) || !preview.revisionId) throw new ForbiddenException("Cancelled projects allow previously issued files only");
       const closed = await tx.projectStatusChange.findFirst({ where: { projectId: context.project.id, toStatus: ProjectStatus.CANCELLED }, orderBy: { occurredAt: "asc" } });

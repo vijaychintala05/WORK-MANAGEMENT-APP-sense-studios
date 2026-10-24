@@ -15,6 +15,7 @@ export default tseslint.config(
       "docs/design/_build/**",
       "docs/v1-demo/task-create-refinement.js",
       "_allviews.js", "_av2.js", "_dump.js", "_probe.js", "_runtest.js", "_trace.js",
+      ".scratch-visual/**",
       "playwright-report/**",
       "test-results/**"
     ]

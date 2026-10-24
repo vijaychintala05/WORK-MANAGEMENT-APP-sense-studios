@@ -1,3 +1,5 @@
+import { ClientPortalScopeService } from "./client-portal-scope.service.js";
+import { workEvidence, submittedEvidence } from "./review-work-evidence.js";
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { AccountKind, AccountState, EmployeeState, InternalReviewSeverity, InternalReviewStatus, NotificationChannel, Prisma, ProjectStatus, RevisionApprovalKind, TaskPriority, TaskReviewRequirement, TaskStatus, TaskType } from "./generated/prisma/client.js";
 import { DatabaseService } from "./database.service.js";
@@ -84,6 +86,11 @@ export class ReviewService {
     const submission = await tx.reviewSubmission.findUniqueOrThrow({ where: { id: row.submissionId } });
     if (submission.projectId !== context.project.id || row.taskId !== context.row.id) throw new NotFoundException("Review round not found");
     if (submission.revisionId) await this.revisionAccess(tx, actor, submission.revisionId, context.project.id);
+    const evidence = submittedEvidence(submission.taskSnapshot);
+    if (evidence?.fileId) {
+      const file = await this.documents.authorizeFile(tx, actor, evidence.fileId);
+      if (file.document.projectId !== context.project.id || file.blob.id !== evidence.blobId || file.blob.sha256 !== evidence.sha256) throw new ConflictException("Exact submitted evidence is unavailable");
+    }
     return { ...context, round: row, submission };
   }
   private async revisionAccess(tx: Tx, actor: ProjectActor, revisionId: string, projectId: string) {
@@ -257,6 +264,8 @@ export class ReviewService {
   async detail(actor: ProjectActor, taskId: string) {
     return this.transaction(async (tx) => {
       const { row, project, account } = await this.task(tx, actor, taskId);
+      const routing = await tx.taskReviewRoutingAttempt.findFirst({ where: { taskId }, orderBy: { createdAt: "desc" }, select: { status: true, blockedReason: true } });
+      const routingAuthorization = await tx.taskReviewRoutingAuthorization.findFirst({ where: { taskId, revokedAt: null }, select: { id: true } });
       const assignment = await tx.reviewAssignment.findUnique({ where: { taskId } });
       const submissions = await tx.reviewSubmission.findMany({ where: { taskId }, orderBy: { roundNumber: "asc" } });
       const rounds = [];
@@ -266,7 +275,9 @@ export class ReviewService {
         const reviewer = await tx.employee.findUniqueOrThrow({ where: { id: round.reviewerEmployeeId }, include: { account: true } });
         const submitter = await tx.account.findUniqueOrThrow({ where: { id: submission.submittedById } });
         const revision = submission.revisionId ? await tx.documentRevision.findUniqueOrThrow({ where: { id: submission.revisionId } }) : null;
-        const evidence = revision ? await this.documents.authorizeFile(tx, actor, revision.fileId) : null;
+        const work = submittedEvidence(submission.taskSnapshot);
+        const evidence = revision || work?.fileId ? await this.documents.authorizeFile(tx, actor, revision?.fileId ?? work!.fileId!) : null;
+        if (work?.fileId && (work.blobId !== evidence?.blob.id || work.sha256 !== evidence.blob.sha256)) throw new ConflictException("Exact submitted evidence is unavailable");
         const comments = [];
         for (const item of await tx.reviewComment.findMany({ where: { roundId: round.id }, orderBy: { createdAt: "asc" } })) {
           if (item.markupFileId) await this.markup(tx, actor, project.id, item.markupFileId);
@@ -274,8 +285,10 @@ export class ReviewService {
           comments.push({ id: item.id, authorName: author.normalizedEmail, comment: item.comment, annotations: item.annotations, markupFileId: item.markupFileId, createdAt: item.createdAt });
         }
         const escalations = await tx.reviewEscalation.findMany({ where: { roundId: round.id }, orderBy: { createdAt: "asc" } });
-        rounds.push({ id: round.id, roundNumber: submission.roundNumber, status: round.status, taskVersion: submission.taskVersion, submittedAt: submission.submittedAt, submittedByName: submitter.normalizedEmail, taskSnapshot: submission.taskSnapshot, revisionId: submission.revisionId, revisionFileId: revision?.fileId ?? null, revisionFileMimeType: evidence?.blob.mimeType ?? null, revisionFileName: evidence?.blob.fileName ?? null, revisionLabel: revision ? `${revision.series}${revision.number}` : null, reviewerName: reviewer.account.normalizedEmail, comments, escalations: escalations.map((item) => ({ id: item.id, recipientAccountId: item.recipientAccountId, reason: item.reason, createdAt: item.createdAt })), correctionTaskId: round.correctionTaskId, decision: round.decidedAt ? { kind: round.status, comment: round.decisionComment, severity: round.severity, categoryName: round.categoryName, decidedAt: round.decidedAt } : null, withdrawal: round.withdrawnAt ? { reason: round.withdrawalReason, at: round.withdrawnAt, actorId: round.withdrawnById } : null });
+        rounds.push({ id: round.id, roundNumber: submission.roundNumber, status: round.status, taskVersion: submission.taskVersion, submittedAt: submission.submittedAt, submittedByName: submitter.normalizedEmail, taskSnapshot: submission.taskSnapshot, revisionId: submission.revisionId, revisionFileId: revision?.fileId ?? work?.fileId ?? null, revisionFileMimeType: evidence?.blob.mimeType ?? null, revisionFileName: evidence?.blob.fileName ?? null, revisionLabel: revision ? `${revision.series}${revision.number}` : null, reviewerName: reviewer.account.normalizedEmail, comments, escalations: escalations.map((item) => ({ id: item.id, recipientAccountId: item.recipientAccountId, reason: item.reason, createdAt: item.createdAt })), correctionTaskId: round.correctionTaskId, decision: round.decidedAt ? { kind: round.status, comment: round.decisionComment, severity: round.severity, categoryName: round.categoryName, decidedAt: round.decidedAt } : null, withdrawal: round.withdrawnAt ? { reason: round.withdrawalReason, at: round.withdrawnAt, actorId: round.withdrawnById } : null });
       }
+      let configureClientRouting = false;
+      try { await new ClientPortalScopeService(this.database, this.authorization).staffAuthority(tx, actor, project.id, "manage"); configureClientRouting = project.status === ProjectStatus.ACTIVE; } catch (error) { if (!(error instanceof ForbiddenException)) throw error; }
       let assignReviewer = false;
       try { await this.manager(tx, actor, project); assignReviewer = project.status === ProjectStatus.ACTIVE; } catch (error) { if (!(error instanceof ForbiddenException)) throw error; }
       const reviewerCandidates = [];
@@ -316,9 +329,9 @@ export class ReviewService {
       return {
         task: { id: row.id, title: row.title, status: row.status, version: row.version, priority: row.priority, committedDueDate: row.committedDueDate?.toISOString().slice(0, 10) ?? null, reviewRequirement: row.reviewRequirement, projectId: project.id },
         assignment: assignment ? { reviewerEmployeeId: assignment.reviewerEmployeeId, reviewerName: (await tx.employee.findUniqueOrThrow({ where: { id: assignment.reviewerEmployeeId }, include: { account: true } })).account.normalizedEmail } : null,
-        rounds, categories: await tx.reviewCategory.findMany({ where: { organizationId: actor.organizationId, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }), reviewerCandidates, correctionOwnerCandidates, availableRevisions, availableMarkupFiles,
+        rounds, categories: await tx.reviewCategory.findMany({ where: { organizationId: actor.organizationId, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }), reviewerCandidates, correctionOwnerCandidates, availableRevisions, availableMarkupFiles, routing, automaticClientRouting: !!routingAuthorization,
         capabilities: {
-          assignReviewer,
+          assignReviewer, configureClientRouting,
           submit: owner && project.status === ProjectStatus.ACTIVE && !!assignment && !row.requiresReassignment && (row.status === TaskStatus.IN_PROGRESS && (!latest || latest.status === InternalReviewStatus.WITHDRAWN || exitRecovery && (latest.status === InternalReviewStatus.APPROVED || latest.status === InternalReviewStatus.CORRECTIONS_REQUIRED && correctionComplete) || clientCorrectionResubmit) || row.status === TaskStatus.CORRECTIONS_REQUIRED && latest?.status === InternalReviewStatus.CORRECTIONS_REQUIRED && correctionComplete),
           start: openRound && latest?.status === InternalReviewStatus.SUBMITTED,
           comment: openRound,
@@ -388,9 +401,35 @@ export class ReviewService {
     if (!current) throw new ConflictException("Current reviewer is no longer eligible");
     return { taskId, taskVersion: row.version, reviewerEmployeeId: employeeId, projectId: project.id };
   }
-  async submit(actor: ProjectActor, taskId: string, input: { expectedVersion: number; reason: string; revisionId?: string | undefined; annotations?: Annotation[] | undefined; markupFileId?: string | undefined }) {
+  async confirmedDrawings(actor: ProjectActor, projectId: string) {
+    return this.transaction(async tx => {
+      const { project } = await this.project(tx, actor, projectId);
+      await this.authorization.assertPermission(actor.accountId, "document.view", { kind: "BRANCH", organizationId: actor.organizationId, branchId: project.branchId }, tx);
+      const approvals = await tx.clientFinalApproval.findMany({ where: { organizationId: actor.organizationId, projectId }, orderBy: { createdAt: "desc" } });
+      const entries = [];
+      for (const approval of approvals) {
+        const snapshots = approval.itemSnapshot as Array<Record<string, unknown>>;
+        for (const exact of snapshots) {
+          const item = await tx.clientReviewItem.findFirst({ where: { id: String(exact.itemId), projectId, organizationId: actor.organizationId, packageId: approval.packageId } });
+          if (!item) continue;
+          const snapshot = item.snapshot as Record<string, unknown>;
+          const work = submittedEvidence(snapshot);
+          const fileId = work?.fileId ?? (typeof snapshot.fileId === "string" ? snapshot.fileId : null);
+          if (!fileId && !work?.url) continue;
+          try {
+            if (fileId) { const file = await this.documents.authorizeFile(tx, actor, fileId); if (file.blob.id !== snapshot.blobId || file.blob.sha256 !== snapshot.sha256) continue; }
+            entries.push({ id: `${approval.id}:${item.id}`, label: item.label, kind: work?.kind === "LINK" ? "LINK" : item.revisionId ? "DRAWING" : "FILE", fileId, url: work?.url ?? null, revisionId: item.revisionId, taskId: item.taskId, approvedAt: approval.createdAt, signatureName: approval.signatureName });
+          } catch (error) { if (!(error instanceof ForbiddenException || error instanceof NotFoundException)) throw error; }
+        }
+      }
+      return { items: entries };
+    });
+  }
+
+  async submit(actor: ProjectActor, taskId: string, input: { expectedVersion: number; reason: string; revisionId?: string | undefined; fileId?: string | undefined; reviewUrl?: string | undefined; annotations?: Annotation[] | undefined; markupFileId?: string | undefined }) {
     await this.transaction(async (tx) => {
       const { row, project, account } = await this.task(tx, actor, taskId, true);
+      if ([input.revisionId, input.fileId, input.reviewUrl].filter(Boolean).length !== 1) throw new BadRequestException("Submit exactly one file, drawing revision or review link");
       if (row.version !== input.expectedVersion || row.requiresReassignment || !new Set<TaskStatus>([TaskStatus.IN_PROGRESS, TaskStatus.CORRECTIONS_REQUIRED]).has(row.status)) throw new ConflictException("Task changed or cannot be submitted");
       if (!new Set<TaskReviewRequirement>([TaskReviewRequirement.INTERNAL, TaskReviewRequirement.BOTH]).has(row.reviewRequirement) || account.employee?.id !== row.primaryOwnerEmployeeId) throw new ForbiddenException("Current task owner with internal review is required");
       const assignment = await tx.reviewAssignment.findUnique({ where: { taskId } });
@@ -414,9 +453,13 @@ export class ReviewService {
         if (!(revision.series === "R" || revision.series === "CR") || revision.state !== "WORKING" || last?.revisionId === revision.id) throw new ConflictException("A new Working R or CR revision is required");
         if (last?.revisionId) { const old = await tx.documentRevision.findUniqueOrThrow({ where: { id: last.revisionId } }); if (old.drawingId !== revision.drawingId || revision.ordinal <= old.ordinal) throw new ConflictException("Revised submission must be a newer revision of the same drawing"); }
       } else if (last?.revisionId) throw new ConflictException("Revised drawing submission needs a new exact R or CR revision");
+      const file = input.fileId ? await this.documents.authorizeFile(tx, actor, input.fileId) : null;
+      if (file && file.document.projectId !== project.id) throw new ForbiddenException("Evidence must belong to this project");
+      if (file) await this.documents.authorizeFile(tx, { accountId: reviewer.accountId, organizationId: actor.organizationId, kind: AccountKind.STAFF }, file.document.id);
+      const evidence = workEvidence(revision ? { kind: "DRAWING", fileId: revision.fileId, blobId: revision.blobId, sha256: revision.sha256, url: null } : file ? { kind: "FILE", fileId: file.document.id, blobId: file.blob.id, sha256: file.blob.sha256, url: null } : { kind: "LINK", fileId: null, blobId: null, sha256: null, url: input.reviewUrl! });
       await this.markup(tx, actor, project.id, input.markupFileId);
       const updated = await this.taskState(tx, actor, row, TaskStatus.SUBMITTED_INTERNAL_REVIEW, input.reason);
-      const submission = await tx.reviewSubmission.create({ data: { organizationId: actor.organizationId, projectId: project.id, taskId, ...(revision ? { revisionId: revision.id } : {}), taskVersion: updated.version, taskSnapshot: { title: row.title, description: row.description, ownerEmployeeId: row.primaryOwnerEmployeeId, priority: row.priority, targetDate: row.targetDate.toISOString().slice(0, 10), committedDueDate: row.committedDueDate?.toISOString().slice(0, 10) ?? null, startDate: row.startDate?.toISOString().slice(0, 10) ?? null, estimatedHours: row.estimatedHours === null ? null : Number(row.estimatedHours), planItemId: row.planItemId, tags: row.tags, checklist: row.checklist, ...(revision ? { revisionId: revision.id, sha256: revision.sha256 } : {}) }, roundNumber: (last?.roundNumber ?? 0) + 1, submittedById: actor.accountId, reason: input.reason } });
+      const submission = await tx.reviewSubmission.create({ data: { organizationId: actor.organizationId, projectId: project.id, taskId, ...(revision ? { revisionId: revision.id } : {}), taskVersion: updated.version, taskSnapshot: { workEvidence: evidence, title: row.title, description: row.description, ownerEmployeeId: row.primaryOwnerEmployeeId, priority: row.priority, targetDate: row.targetDate.toISOString().slice(0, 10), committedDueDate: row.committedDueDate?.toISOString().slice(0, 10) ?? null, startDate: row.startDate?.toISOString().slice(0, 10) ?? null, estimatedHours: row.estimatedHours === null ? null : Number(row.estimatedHours), planItemId: row.planItemId, tags: row.tags, checklist: row.checklist, ...(revision ? { revisionId: revision.id, sha256: revision.sha256 } : {}) }, roundNumber: (last?.roundNumber ?? 0) + 1, submittedById: actor.accountId, reason: input.reason } });
       const round = await tx.reviewRound.create({ data: { organizationId: actor.organizationId, projectId: project.id, taskId, submissionId: submission.id, reviewerEmployeeId: assignment.reviewerEmployeeId } });
       const eventId = await recordProjectEvent(tx, { organizationId: actor.organizationId, actorId: actor.accountId, eventName: "review.requested", subjectType: "review", subjectId: round.id, reason: input.reason, after: { taskId, projectId: project.id, submissionId: submission.id, roundId: round.id, roundNumber: submission.roundNumber, ...(revision ? { drawingId: revision.drawingId, revisionId: revision.id, blobId: revision.blobId, sha256: revision.sha256 } : {}) } });
       if (revision) await this.revisions.consumeReviewState(tx, revision.id, await this.auditId(tx, eventId));
@@ -551,6 +594,13 @@ export class ReviewService {
       const eventId = await recordProjectEvent(tx, { organizationId: actor.organizationId, actorId: actor.accountId, eventName: input.kind === "APPROVED" ? "review.approved" : "review.correction_requested", subjectType: "review", subjectId: roundId, reason: input.reason, after: { taskId: row.id, projectId: project.id, roundId, submissionId: submission.id, decision: input.kind, ...(category ? { severity: input.severity!, categoryId: category.id, categoryName: category.name } : {}), ...(revision ? { drawingId: revision.drawingId, revisionId: revision.id, blobId: revision.blobId, sha256: revision.sha256 } : {}) } });
       if (revision) { const auditId = await this.auditId(tx, eventId); if (input.kind === "APPROVED") await this.revisions.consumeApproval(tx, revision.id, auditId, RevisionApprovalKind.INTERNAL); else await this.revisions.consumeReviewState(tx, revision.id, auditId); }
       await this.taskState(tx, actor, row, input.kind === "APPROVED" ? TaskStatus.INTERNAL_APPROVED : TaskStatus.CORRECTIONS_REQUIRED, input.reason);
+      if (input.kind === "APPROVED" && row.reviewRequirement === TaskReviewRequirement.BOTH && submittedEvidence(submission.taskSnapshot)) {
+        const authorization = await tx.taskReviewRoutingAuthorization.findFirst({ where: { taskId: row.id, revokedAt: null }, orderBy: { createdAt: "desc" } });
+        if (authorization) {
+          const attempt = await tx.taskReviewRoutingAttempt.create({ data: { organizationId: actor.organizationId, projectId: project.id, taskId: row.id, submissionId: submission.id, authorizationId: authorization.id } });
+          await recordProjectEvent(tx, { organizationId: actor.organizationId, actorId: actor.accountId, eventName: "review.routing_changed", subjectType: "review_routing", subjectId: attempt.id, reason: "Queue client routing after independent internal approval", after: { projectId: project.id, taskId: row.id, submissionId: submission.id, authorizationId: authorization.id, status: "PENDING", blockedReason: null } });
+        }
+      }
       return row.id;
     });
     return this.detail(actor, taskId);

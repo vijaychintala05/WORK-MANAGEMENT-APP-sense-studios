@@ -1,3 +1,10 @@
+import { recordProjectEvent } from "./project-events.js";
+import { ReviewRoutingService } from "./review-routing.service.js";
+import { ClientReviewService } from "./client-review.service.js";
+import { ClientPortalScopeService } from "./client-portal-scope.service.js";
+import { ClientPortalAccessService } from "./client-portal-access.service.js";
+import { ClientPortalIdentityService } from "./client-portal-identity.service.js";
+import { BrevoEmailAdapter } from "./brevo-email.js";
 import "reflect-metadata";
 import { jest } from "@jest/globals";
 import { createHash, randomUUID } from "node:crypto";
@@ -202,7 +209,7 @@ databaseDescribe("S13 review workflow PostgreSQL acceptance", () => {
     const task = await fixture.tasks.create(fixture.owner, { projectId: fixture.projectId, ownerEmployeeId: fixture.employeeIds.exitingCorrectionSubmitter, title: "Assign correction after submitting owner exits", type: "PROJECT", priority: "MEDIUM", targetDate: "2026-12-31", reviewRequirement: TaskReviewRequirement.INTERNAL, reason: "Create pending correction exit regression task" });
     await fixture.reviews.assignReviewer(fixture.manager, task.id, { employeeId: fixture.employeeIds.reviewer, expectedVersion: 1, reason: "Assign independent exit regression reviewer" });
     await fixture.tasks.transition(fixture.exitingCorrectionSubmitter, task.id, { toState: "IN_PROGRESS", expectedVersion: 2, reason: "Start pending correction exit task" });
-    const submitted = await fixture.reviews.submit(fixture.exitingCorrectionSubmitter, task.id, { expectedVersion: 3, reason: "Submit before pending correction owner exit" });
+    const submitted = await fixture.reviews.submit(fixture.exitingCorrectionSubmitter, task.id, { reviewUrl: "https://files.sensestudios.com/review/test-round", expectedVersion: 3, reason: "Submit before pending correction owner exit" });
     const roundId = submitted.rounds[0]!.id;
     await fixture.reviews.decision(fixture.reviewer, roundId, { kind: "CORRECTIONS_REQUIRED", severity: "MAJOR", categoryId: category.id, comment: "Correct coordination before resubmission", reason: "Request correction before submitting owner exits" });
     const decision = await database.prisma.reviewRound.findUniqueOrThrow({ where: { id: roundId } });
@@ -217,7 +224,7 @@ databaseDescribe("S13 review workflow PostgreSQL acceptance", () => {
     await fixture.tasks.transition(fixture.correctionOwner, correctionId, { toState: "IN_PROGRESS", expectedVersion: 1, reason: "Start correction assigned after exit" });
     await fixture.tasks.transition(fixture.correctionOwner, correctionId, { toState: "COMPLETED", expectedVersion: 2, reason: "Complete correction assigned after exit" });
     const replacement = await database.prisma.task.findUniqueOrThrow({ where: { id: task.id } });
-    const revised = await fixture.reviews.submit(fixture.correctionOwner, task.id, { expectedVersion: replacement.version, reason: "Resubmit corrected work after exit recovery" });
+    const revised = await fixture.reviews.submit(fixture.correctionOwner, task.id, { reviewUrl: "https://files.sensestudios.com/review/test-round", expectedVersion: replacement.version, reason: "Resubmit corrected work after exit recovery" });
     const latestId = revised.rounds.at(-1)!.id;
     await fixture.reviews.decision(fixture.reviewer, latestId, { kind: "CORRECTIONS_REQUIRED", severity: "MINOR", categoryId: category.id, comment: "Resolve final correction", reason: "Request second round correction" });
     await expect(fixture.reviews.assignCorrection(fixture.manager, roundId, { ownerEmployeeId: fixture.employeeIds.correctionOwner, reason: "Attempt assignment against stale correction round" })).rejects.toThrow(/Correction is unavailable/);
@@ -233,7 +240,7 @@ databaseDescribe("S13 review workflow PostgreSQL acceptance", () => {
     await fixture.reviews.assignReviewer(fixture.manager, approvalTask.id, { employeeId: fixture.employeeIds.reviewer, expectedVersion: 1, reason: "Assign authorized independent reviewer" });
     await fixture.tasks.transition(fixture.submitter, approvalTask.id, { toState: "IN_PROGRESS", expectedVersion: 2, reason: "Start assigned design task" });
     let approvalTaskVersion = (await database.prisma.task.findUniqueOrThrow({ where: { id: approvalTask.id } })).version;
-    const approvalSubmission = await fixture.reviews.submit(fixture.submitter, approvalTask.id, { expectedVersion: approvalTaskVersion, reason: "Submit design work for internal review" });
+    const approvalSubmission = await fixture.reviews.submit(fixture.submitter, approvalTask.id, { reviewUrl: "https://files.sensestudios.com/review/test-round", expectedVersion: approvalTaskVersion, reason: "Submit design work for internal review" });
     const approvalRoundId = approvalSubmission.rounds[0]!.id;
     const countsBeforeSelfDecision = {
       audits: await database.prisma.auditEvent.count({ where: { organizationId: fixture.organizationId } }),
@@ -249,7 +256,7 @@ databaseDescribe("S13 review workflow PostgreSQL acceptance", () => {
     await fixture.workflows.assignment(fixture.owner, foreignProject.project.id, { employeeId: fixture.employeeIds.correctionOwner, expectedVersion: foreignProjectVersion, reason: "Assign correction owner only to restricted project" });
     const foreignTask = await fixture.tasks.create(fixture.owner, { projectId: foreignProject.project.id, ownerEmployeeId: fixture.employeeIds.correctionOwner, title: "Restricted project task", type: "PROJECT", priority: "LOW", targetDate: "2026-12-31", reviewRequirement: TaskReviewRequirement.INTERNAL, reason: "Create task in a project unavailable to submitter" });
     await expect(fixture.reviews.detail(fixture.submitter, foreignTask.id)).rejects.toThrow(/Permission denied/);
-    await expect(fixture.reviews.submit(fixture.submitter, foreignTask.id, { expectedVersion: 1, reason: "Attempt to submit another project task" })).rejects.toThrow(/Permission denied/);
+    await expect(fixture.reviews.submit(fixture.submitter, foreignTask.id, { reviewUrl: "https://files.sensestudios.com/review/test-round", expectedVersion: 1, reason: "Attempt to submit another project task" })).rejects.toThrow(/Permission denied/);
 
     await fixture.reviews.start(fixture.reviewer, approvalRoundId, "Begin the assigned independent review");
     const approved = await fixture.reviews.decision(fixture.reviewer, approvalRoundId, { kind: "APPROVED", comment: "Design package meets requirements", reason: "Approve exact submitted work" });
@@ -281,7 +288,7 @@ databaseDescribe("S13 review workflow PostgreSQL acceptance", () => {
     await fixture.reviews.assignReviewer(fixture.manager, reassignedTask.id, { employeeId: fixture.employeeIds.reviewer, expectedVersion: 1, reason: "Assign reviewer before reassignment" });
     await fixture.tasks.transition(fixture.submitter, reassignedTask.id, { toState: "IN_PROGRESS", expectedVersion: 2, reason: "Start task before review" });
     const reassignedTaskVersion = (await database.prisma.task.findUniqueOrThrow({ where: { id: reassignedTask.id } })).version;
-    const reassignedSubmission = await fixture.reviews.submit(fixture.submitter, reassignedTask.id, { expectedVersion: reassignedTaskVersion, reason: "Submit before reviewer becomes owner" });
+    const reassignedSubmission = await fixture.reviews.submit(fixture.submitter, reassignedTask.id, { reviewUrl: "https://files.sensestudios.com/review/test-round", expectedVersion: reassignedTaskVersion, reason: "Submit before reviewer becomes owner" });
     const reassignedRoundId = reassignedSubmission.rounds[0]!.id;
     const beforeOwnershipChange = await database.prisma.reviewSubmission.findFirstOrThrow({ where: { taskId: reassignedTask.id } });
     expect(beforeOwnershipChange.submittedById).toBe(fixture.submitter.accountId);
@@ -344,7 +351,7 @@ databaseDescribe("S13 review workflow PostgreSQL acceptance", () => {
     await fixture.reviews.assignReviewer(fixture.manager, rollbackTask.id, { employeeId: fixture.employeeIds.reviewer, expectedVersion: 1, reason: "Assign reviewer for rollback assertion" });
     await fixture.tasks.transition(fixture.submitter, rollbackTask.id, { toState: "IN_PROGRESS", expectedVersion: 2, reason: "Start rollback assertion task" });
     const beforeInvalidVersion = { task: await database.prisma.task.findUniqueOrThrow({ where: { id: rollbackTask.id } }), submissions: await database.prisma.reviewSubmission.count({ where: { taskId: rollbackTask.id } }), audit: await database.prisma.auditEvent.count({ where: { organizationId: fixture.organizationId } }), events: await database.prisma.domainEvent.count({ where: { organizationId: fixture.organizationId } }) };
-    await expect(fixture.reviews.submit(fixture.submitter, rollbackTask.id, { expectedVersion: beforeInvalidVersion.task.version, reason: "x".repeat(1001) })).rejects.toThrow();
+    await expect(fixture.reviews.submit(fixture.submitter, rollbackTask.id, { reviewUrl: "https://files.sensestudios.com/review/test-round", expectedVersion: beforeInvalidVersion.task.version, reason: "x".repeat(1001) })).rejects.toThrow();
     expect(await database.prisma.task.findUniqueOrThrow({ where: { id: rollbackTask.id } })).toMatchObject({ status: beforeInvalidVersion.task.status, version: beforeInvalidVersion.task.version });
     expect(await database.prisma.reviewSubmission.count({ where: { taskId: rollbackTask.id } })).toBe(beforeInvalidVersion.submissions);
     expect(await database.prisma.auditEvent.count({ where: { organizationId: fixture.organizationId } })).toBe(beforeInvalidVersion.audit);
@@ -375,7 +382,7 @@ databaseDescribe("S13 review workflow PostgreSQL acceptance", () => {
     await fixture.reviews.assignReviewer(fixture.manager, escalationTask.id, { employeeId: fixture.employeeIds.reviewer, expectedVersion: 1, reason: "Assign reviewer for escalation and planning checks" });
     await fixture.tasks.transition(fixture.submitter, escalationTask.id, { toState: "IN_PROGRESS", expectedVersion: 2, reason: "Start escalation acceptance task" });
     const escalationTaskVersion = (await database.prisma.task.findUniqueOrThrow({ where: { id: escalationTask.id } })).version;
-    const escalationSubmission = await fixture.reviews.submit(fixture.submitter, escalationTask.id, { expectedVersion: escalationTaskVersion, reason: "Submit task before escalation and planning checks" });
+    const escalationSubmission = await fixture.reviews.submit(fixture.submitter, escalationTask.id, { reviewUrl: "https://files.sensestudios.com/review/test-round", expectedVersion: escalationTaskVersion, reason: "Submit task before escalation and planning checks" });
     const escalationRoundId = escalationSubmission.rounds[0]!.id;
     await fixture.reviews.start(fixture.reviewer, escalationRoundId, "Start open round for escalation" );
     await expect(fixture.reviews.escalate(fixture.manager, escalationRoundId, "Attempt escalation as a nonreviewer")).rejects.toThrow(/assigned independent reviewer/);
@@ -433,7 +440,7 @@ databaseDescribe("S13 review workflow PostgreSQL acceptance", () => {
     await fixture.reviews.assignReviewer(fixture.manager, revokedGrantTask.id, { employeeId: fixture.employeeIds.reviewer, expectedVersion: 1, reason: "Assign reviewer before grant revocation" });
     await fixture.tasks.transition(fixture.submitter, revokedGrantTask.id, { toState: "IN_PROGRESS", expectedVersion: 2, reason: "Start task before grant revocation" });
     const revokedGrantTaskVersion = (await database.prisma.task.findUniqueOrThrow({ where: { id: revokedGrantTask.id } })).version;
-    const revokedGrantSubmission = await fixture.reviews.submit(fixture.submitter, revokedGrantTask.id, { expectedVersion: revokedGrantTaskVersion, reason: "Submit before reviewer grant revocation" });
+    const revokedGrantSubmission = await fixture.reviews.submit(fixture.submitter, revokedGrantTask.id, { reviewUrl: "https://files.sensestudios.com/review/test-round", expectedVersion: revokedGrantTaskVersion, reason: "Submit before reviewer grant revocation" });
     const revokedGrantRoundId = revokedGrantSubmission.rounds[0]!.id;
     await fixture.reviews.start(fixture.reviewer, revokedGrantRoundId, "Start while review.decide grant is active");
     const reviewerGrant = await database.prisma.employeePermissionOverride.findUniqueOrThrow({ where: { id: fixture.reviewerDecideGrantId } });
@@ -461,7 +468,7 @@ databaseDescribe("S13 review workflow PostgreSQL acceptance", () => {
     await fixture.reviews.assignReviewer(fixture.manager, correctionsExitTask.id, { employeeId: fixture.employeeIds.reviewer, expectedVersion: 1, reason: "Assign reviewer for corrections exit recovery" });
     await fixture.tasks.transition(fixture.exitingCorrectionSubmitter, correctionsExitTask.id, { toState: "IN_PROGRESS", expectedVersion: 2, reason: "Start correction recovery work" });
     const correctionsExitTaskVersion = (await database.prisma.task.findUniqueOrThrow({ where: { id: correctionsExitTask.id } })).version;
-    const correctionsExitSubmission = await fixture.reviews.submit(fixture.exitingCorrectionSubmitter, correctionsExitTask.id, { expectedVersion: correctionsExitTaskVersion, reason: "Submit work that will require correction" });
+    const correctionsExitSubmission = await fixture.reviews.submit(fixture.exitingCorrectionSubmitter, correctionsExitTask.id, { reviewUrl: "https://files.sensestudios.com/review/test-round", expectedVersion: correctionsExitTaskVersion, reason: "Submit work that will require correction" });
     const correctionsExitRoundId = correctionsExitSubmission.rounds[0]!.id;
     await fixture.reviews.start(fixture.reviewer, correctionsExitRoundId, "Start correction recovery review");
     const correctedExitSubmission = await fixture.reviews.decision(fixture.reviewer, correctionsExitRoundId, { kind: "CORRECTIONS_REQUIRED", severity: "MODERATE", categoryId: category.id, comment: "Clarify the scope note", reason: "Request correction before submitter exit" });
@@ -478,7 +485,7 @@ databaseDescribe("S13 review workflow PostgreSQL acceptance", () => {
     const correctionInProgress = await database.prisma.task.findUniqueOrThrow({ where: { id: correctionExitTaskId } });
     await fixture.tasks.transition(fixture.correctionOwner, correctionExitTaskId, { toState: "COMPLETED", expectedVersion: correctionInProgress.version, reason: "Complete correction after submitter exit" });
     const correctionsReplacement = await database.prisma.task.findUniqueOrThrow({ where: { id: correctionsExitTask.id } });
-    const correctionsExitRoundTwo = await fixture.reviews.submit(fixture.correctionOwner, correctionsExitTask.id, { expectedVersion: correctionsReplacement.version, reason: "Replacement owner resubmits after completing correction" });
+    const correctionsExitRoundTwo = await fixture.reviews.submit(fixture.correctionOwner, correctionsExitTask.id, { reviewUrl: "https://files.sensestudios.com/review/test-round", expectedVersion: correctionsReplacement.version, reason: "Replacement owner resubmits after completing correction" });
     expect(correctedExitSubmission.rounds.find((round) => round.id === correctionsExitRoundId)).toMatchObject({ status: "CORRECTIONS_REQUIRED", decision: { kind: "CORRECTIONS_REQUIRED", severity: "MODERATE", categoryName: category.name } });
     expect(await database.prisma.reviewRound.findUniqueOrThrow({ where: { id: correctionsExitRoundId } })).toMatchObject({ status: oldCorrectionDecision.status, decisionComment: oldCorrectionDecision.decisionComment, severity: oldCorrectionDecision.severity, categoryId: oldCorrectionDecision.categoryId });
     expect(correctionsExitRoundTwo.rounds.map((round) => ({ id: round.id, roundNumber: round.roundNumber, status: round.status }))).toEqual([
@@ -490,7 +497,7 @@ databaseDescribe("S13 review workflow PostgreSQL acceptance", () => {
     await fixture.reviews.assignReviewer(fixture.manager, approvedExitTask.id, { employeeId: fixture.employeeIds.reviewer, expectedVersion: 1, reason: "Assign reviewer for approved snapshot exit task" });
     await fixture.tasks.transition(fixture.exitingApprovedSubmitter, approvedExitTask.id, { toState: "IN_PROGRESS", expectedVersion: 2, reason: "Start approved snapshot task" });
     const approvedExitVersion = (await database.prisma.task.findUniqueOrThrow({ where: { id: approvedExitTask.id } })).version;
-    const approvedExitSubmission = await fixture.reviews.submit(fixture.exitingApprovedSubmitter, approvedExitTask.id, { expectedVersion: approvedExitVersion, reason: "Submit exact task snapshot before owner exit" });
+    const approvedExitSubmission = await fixture.reviews.submit(fixture.exitingApprovedSubmitter, approvedExitTask.id, { reviewUrl: "https://files.sensestudios.com/review/test-round", expectedVersion: approvedExitVersion, reason: "Submit exact task snapshot before owner exit" });
     const approvedExitRoundId = approvedExitSubmission.rounds[0]!.id;
     await fixture.reviews.start(fixture.reviewer, approvedExitRoundId, "Review snapshot before owner exit");
     const approvedExitReview = await fixture.reviews.decision(fixture.reviewer, approvedExitRoundId, { kind: "APPROVED", comment: "Submitted task snapshot approved", reason: "Approve exact task snapshot before owner exit" });
@@ -510,7 +517,7 @@ databaseDescribe("S13 review workflow PostgreSQL acceptance", () => {
     await fixture.reviews.assignReviewer(fixture.manager, editedExitTask.id, { employeeId: fixture.employeeIds.reviewer, expectedVersion: 1, reason: "Assign reviewer for edited snapshot recovery task" });
     await fixture.tasks.transition(fixture.exitingEditedSubmitter, editedExitTask.id, { toState: "IN_PROGRESS", expectedVersion: 2, reason: "Start edited snapshot recovery task" });
     const editedExitVersion = (await database.prisma.task.findUniqueOrThrow({ where: { id: editedExitTask.id } })).version;
-    const editedExitSubmission = await fixture.reviews.submit(fixture.exitingEditedSubmitter, editedExitTask.id, { expectedVersion: editedExitVersion, reason: "Submit snapshot that will later be changed" });
+    const editedExitSubmission = await fixture.reviews.submit(fixture.exitingEditedSubmitter, editedExitTask.id, { reviewUrl: "https://files.sensestudios.com/review/test-round", expectedVersion: editedExitVersion, reason: "Submit snapshot that will later be changed" });
     const editedExitRoundId = editedExitSubmission.rounds[0]!.id;
     await fixture.reviews.start(fixture.reviewer, editedExitRoundId, "Review snapshot before edited-owner exit");
     await fixture.reviews.decision(fixture.reviewer, editedExitRoundId, { kind: "APPROVED", comment: "Original scope approved", reason: "Approve original task snapshot before exit" });
@@ -523,7 +530,7 @@ databaseDescribe("S13 review workflow PostgreSQL acceptance", () => {
     const changedTask = await database.prisma.task.findUniqueOrThrow({ where: { id: editedExitTask.id } });
     expect((await database.prisma.reviewSubmission.findFirstOrThrow({ where: { taskId: editedExitTask.id } })).taskSnapshot).toEqual(editedSnapshot);
     await expect(fixture.reviews.complete(fixture.correctionOwner, editedExitTask.id, { expectedVersion: changedTask.version, reason: "Attempt completion after approved task scope changed" })).rejects.toThrow(/differs from its approved submission/);
-    const replacementReview = await fixture.reviews.submit(fixture.correctionOwner, editedExitTask.id, { expectedVersion: changedTask.version, reason: "Submit changed replacement scope for a new review" });
+    const replacementReview = await fixture.reviews.submit(fixture.correctionOwner, editedExitTask.id, { reviewUrl: "https://files.sensestudios.com/review/test-round", expectedVersion: changedTask.version, reason: "Submit changed replacement scope for a new review" });
     expect(replacementReview.rounds.map((round) => ({ id: round.id, roundNumber: round.roundNumber, status: round.status }))).toEqual([
       { id: editedExitRoundId, roundNumber: 1, status: "APPROVED" },
       { id: expect.any(String), roundNumber: 2, status: "SUBMITTED" }
@@ -537,7 +544,7 @@ databaseDescribe("S13 review workflow PostgreSQL acceptance", () => {
     await fixture.reviews.assignReviewer(fixture.manager, withdrawalTask.id, { employeeId: fixture.employeeIds.reviewer, expectedVersion: 1, reason: "Assign reviewer before submitter exit" });
     await fixture.tasks.transition(fixture.submitter, withdrawalTask.id, { toState: "IN_PROGRESS", expectedVersion: 2, reason: "Start work before submitter exit" });
     const beforeExitVersion = (await database.prisma.task.findUniqueOrThrow({ where: { id: withdrawalTask.id } })).version;
-    const interruptedSubmission = await fixture.reviews.submit(fixture.submitter, withdrawalTask.id, { expectedVersion: beforeExitVersion, reason: "Submit before employee exit" });
+    const interruptedSubmission = await fixture.reviews.submit(fixture.submitter, withdrawalTask.id, { reviewUrl: "https://files.sensestudios.com/review/test-round", expectedVersion: beforeExitVersion, reason: "Submit before employee exit" });
     const interruptedRoundId = interruptedSubmission.rounds[0]!.id;
     const originalSubmission = await database.prisma.reviewSubmission.findFirstOrThrow({ where: { taskId: withdrawalTask.id } });
     const originalRound = await database.prisma.reviewRound.findUniqueOrThrow({ where: { id: interruptedRoundId } });
@@ -554,10 +561,95 @@ databaseDescribe("S13 review workflow PostgreSQL acceptance", () => {
     expect(await database.prisma.reviewRound.findUniqueOrThrow({ where: { id: interruptedRoundId } })).toMatchObject({ status: "WITHDRAWN", reviewerEmployeeId: originalRound.reviewerEmployeeId, withdrawnById: fixture.manager.accountId, withdrawalReason });
     const withdrawnEvent = await database.prisma.domainEvent.findFirstOrThrow({ where: { organizationId: fixture.organizationId, eventName: "review.withdrawn", subjectId: interruptedRoundId, actorId: fixture.manager.accountId } });
     expect(await database.prisma.auditEvent.findUniqueOrThrow({ where: { id: (withdrawnEvent.payload as { auditEventId: string }).auditEventId } })).toMatchObject({ eventKey: "review.withdrawn", subjectId: interruptedRoundId, actorId: fixture.manager.accountId, reason: withdrawalReason });
-    const replacementSubmission = await fixture.reviews.submit(fixture.correctionOwner, withdrawalTask.id, { expectedVersion: reassignedWithdrawalTask.version, reason: "Submit replacement work after old round withdrawal" });
+    const replacementSubmission = await fixture.reviews.submit(fixture.correctionOwner, withdrawalTask.id, { reviewUrl: "https://files.sensestudios.com/review/test-round", expectedVersion: reassignedWithdrawalTask.version, reason: "Submit replacement work after old round withdrawal" });
     expect(replacementSubmission.rounds.map((round) => ({ id: round.id, roundNumber: round.roundNumber, status: round.status }))).toEqual([
       { id: interruptedRoundId, roundNumber: 1, status: "WITHDRAWN" },
       { id: expect.any(String), roundNumber: 2, status: "SUBMITTED" }
     ]);
   });
+  it("requires evidence, waits for independent internal approval, blocks missing clients and retries without duplicate publication", async () => {
+    const f = await makeFixture(database, nasRoot);
+    const authorization = new AuthorizationService(database);
+    const scope = new ClientPortalScopeService(database, authorization);
+    const config: RuntimeConfig = { nodeEnv: "test", port: 4000, databaseUrl: databaseUrl!, webOrigin: "http://localhost:5173", ownerBootstrapEmail: undefined, ownerBootstrapSecret: undefined, nasRoot, emailVerificationSecret: "routing-test-email-proof-secret" };
+    const identity = new ClientPortalIdentityService(database, new BrevoEmailAdapter(config), config);
+    const clients = new ClientReviewService(database, scope, identity, f.documents, f.revisions);
+    const routing = new ReviewRoutingService(database, clients, scope);
+    await expect(f.tasks.create(f.submitter, { projectId: f.projectId, title: "Unauthorized publication", type: "PROJECT", priority: "LOW", targetDate: "2026-12-31", reviewRequirement: "CLIENT", reason: "Must require publisher authority" })).rejects.toThrow();
+    const task = await f.tasks.create(f.owner, { projectId: f.projectId, ownerEmployeeId: f.employeeIds.submitter, title: "Review link evidence", type: "PROJECT", priority: "MEDIUM", targetDate: "2026-12-31", reviewRequirement: "CLIENT", reason: "Authorize internal then client review" });
+    expect(task.reviewRequirement).toBe("BOTH");
+    await f.reviews.assignReviewer(f.manager, task.id, { employeeId: f.employeeIds.reviewer, expectedVersion: 1, reason: "Appoint independent reviewer" });
+    await f.tasks.transition(f.submitter, task.id, { toState: "IN_PROGRESS", expectedVersion: 2, reason: "Begin approved review task" });
+    await expect(f.reviews.submit(f.submitter, task.id, { expectedVersion: 3, reason: "Reject task text without evidence" })).rejects.toThrow(/file|link/i);
+    expect(await database.prisma.reviewSubmission.count({ where: { taskId: task.id } })).toBe(0);
+    const internal = await f.reviews.submit(f.submitter, task.id, { expectedVersion: 3, reviewUrl: "https://files.sensestudios.com/review/first-floor?v=1", reason: "Submit exact work link" });
+    await routing.runBatch();
+    expect(await database.prisma.clientReviewItem.count({ where: { taskId: task.id } })).toBe(0);
+    await f.reviews.start(f.reviewer, internal.rounds[0]!.id, "Start independent review");
+    await f.reviews.decision(f.reviewer, internal.rounds[0]!.id, { kind: "APPROVED", reason: "Approve exact submitted work" });
+    await routing.runBatch();
+    expect(await database.prisma.task.findUniqueOrThrow({ where: { id: task.id } })).toMatchObject({ status: "INTERNAL_APPROVED" });
+    expect(await database.prisma.taskReviewRoutingAttempt.findFirst({ where: { taskId: task.id } })).toMatchObject({ status: "BLOCKED" });
+    const project = await database.prisma.project.findUniqueOrThrow({ where: { id: f.projectId } });
+    await new ClientPortalAccessService(database).setPrimary(f.owner, f.projectId, { email: `routing-client-${randomUUID()}@example.test`, expectedProjectVersion: project.version, expectedPrimaryGrantId: null, reason: "Appoint required Primary Client" });
+    await Promise.all([routing.retry(f.owner, task.id), routing.retry(f.owner, task.id)]);
+    expect(await database.prisma.taskReviewRoutingAttempt.findFirst({ where: { taskId: task.id } })).toMatchObject({ status: "SENT" });
+    const items = await database.prisma.clientReviewItem.findMany({ where: { taskId: task.id } });
+    expect(items).toHaveLength(1);
+    expect(items[0]!.workSubmissionId).toBeTruthy();
+    expect(items[0]!.snapshot).toMatchObject({ workEvidence: { kind: "LINK", url: "https://files.sensestudios.com/review/first-floor?v=1" } });
+    const audit = await database.prisma.auditEvent.findFirstOrThrow({ where: { subjectId: items[0]!.id, eventKey: "client.review_sent" } });
+    expect(JSON.stringify(audit.after)).not.toContain("https://");
+    expect((await f.reviews.confirmedDrawings(f.owner, f.projectId)).items).toHaveLength(0);
+    await routing.retry(f.owner, task.id);
+    expect(await database.prisma.clientReviewItem.count({ where: { taskId: task.id } })).toBe(1);
+
+    const authorizationRow = await database.prisma.taskReviewRoutingAuthorization.findFirstOrThrow({ where: { taskId: task.id, revokedAt: null } });
+    await expect(database.prisma.$transaction(async tx => {
+      await tx.taskReviewRoutingAuthorization.update({ where: { id: authorizationRow.id }, data: { revokedAt: new Date() } });
+      const updated = await tx.task.update({ where: { id: task.id }, data: { version: { increment: 1 } } });
+      await recordProjectEvent(tx, { organizationId: f.organizationId, actorId: f.owner.accountId, eventName: "task.updated", subjectType: "task", subjectId: task.id, reason: "Ordinary task edit cannot prove authorization revocation", after: { projectId: f.projectId, version: updated.version } });
+    })).rejects.toThrow(/canonical.*publisher|Routing authorization/i);
+    expect((await database.prisma.taskReviewRoutingAuthorization.findUniqueOrThrow({ where: { id: authorizationRow.id } })).revokedAt).toBeNull();
+    const confidential = await f.documents.createFolder(f.owner, f.projectId, { name: `Confidential ${randomUUID()}`, confidential: true, reason: "Configure restricted folder for evidence test" });
+    const child = await f.documents.createFolder(f.owner, f.projectId, { name: `Ordinary child ${randomUUID()}`, parentId: confidential.id, confidential: false, reason: "Ordinary file still inherits Confidential ancestry" });
+    for (const employeeId of [f.employeeIds.submitter, f.employeeIds.reviewer]) await f.documents.grant(f.owner, f.projectId, { resourceKind: "FOLDER", resourceId: confidential.id, employeeId, reason: "Allow internal review of restricted evidence" });
+    const bytes = Buffer.from("%PDF-1.7\nRestricted internal evidence\n%%EOF\n");
+    const upload = await f.documents.startUpload(f.owner, f.projectId, { folderId: child.id, fileName: "restricted.pdf", mimeType: "application/pdf", sizeBytes: bytes.length, confidential: false, viewOnly: false, reason: "Upload ordinary file inside restricted ancestry" });
+    await f.documents.writeChunk(f.owner, upload.uploadId, 0, bytes, createHash("sha256").update(bytes).digest("hex"));
+    const restrictedFile = await f.documents.finalize(f.owner, upload.uploadId);
+    const restricted = await f.tasks.create(f.owner, { projectId: f.projectId, ownerEmployeeId: f.employeeIds.submitter, title: "Internal Confidential evidence", type: "PROJECT", priority: "LOW", targetDate: "2026-12-31", reviewRequirement: "BOTH", reason: "Test Confidential ancestry cannot be published" });
+    await f.reviews.assignReviewer(f.manager, restricted.id, { employeeId: f.employeeIds.reviewer, expectedVersion: 1, reason: "Appoint independent confidential reviewer" });
+    await f.tasks.transition(f.submitter, restricted.id, { toState: "IN_PROGRESS", expectedVersion: 2, reason: "Start private review work" });
+    const restrictedRound = await f.reviews.submit(f.submitter, restricted.id, { expectedVersion: 3, fileId: restrictedFile.id, reason: "Submit file for internal-only access" });
+    await f.reviews.start(f.reviewer, restrictedRound.rounds[0]!.id, "Inspect restricted file internally");
+    await f.reviews.decision(f.reviewer, restrictedRound.rounds[0]!.id, { kind: "APPROVED", reason: "Approve restricted evidence internally" });
+    await routing.runBatch();
+    expect(await database.prisma.clientReviewItem.count({ where: { taskId: restricted.id } })).toBe(0);
+    expect(await database.prisma.taskReviewRoutingAttempt.findFirst({ where: { taskId: restricted.id } })).toMatchObject({ status: "BLOCKED", blockedReason: expect.stringContaining("EVIDENCE_ACCESS") });
+    const guarded = await f.tasks.create(f.owner, { projectId: f.projectId, ownerEmployeeId: f.employeeIds.submitter, title: "Revocation before publication", type: "PROJECT", priority: "LOW", targetDate: "2026-12-31", reviewRequirement: "BOTH", reason: "Configure explicit publication authorization" });
+    const configured = await routing.configure(f.manager, guarded.id, { expectedVersion: 1, internal: false, client: true, reason: "Project Lead authorizes client routing" });
+    expect(configured.reviewRequirement).toBe("BOTH");
+    await f.reviews.assignReviewer(f.manager, guarded.id, { employeeId: f.employeeIds.reviewer, expectedVersion: configured.version, reason: "Appoint independent reviewer for guarded work" });
+    const guardedTask = await database.prisma.task.findUniqueOrThrow({ where: { id: guarded.id } });
+    await f.tasks.transition(f.submitter, guarded.id, { toState: "IN_PROGRESS", expectedVersion: guardedTask.version, reason: "Start guarded work" });
+    const guardedCurrent = await database.prisma.task.findUniqueOrThrow({ where: { id: guarded.id } });
+    const guardedInternal = await f.reviews.submit(f.submitter, guarded.id, { expectedVersion: guardedCurrent.version, reviewUrl: "https://files.sensestudios.com/guarded", reason: "Submit guarded work evidence" });
+    await f.reviews.start(f.reviewer, guardedInternal.rounds[0]!.id, "Inspect guarded work independently");
+    await f.reviews.decision(f.reviewer, guardedInternal.rounds[0]!.id, { kind: "APPROVED", reason: "Approve guarded work independently" });
+    await routing.revoke(f.owner, guarded.id, "Owner revokes automatic publication before delivery");
+    await routing.runBatch();
+    expect(await database.prisma.clientReviewItem.count({ where: { taskId: guarded.id } })).toBe(0);
+    expect(await database.prisma.taskReviewRoutingAttempt.findFirst({ where: { taskId: guarded.id } })).toMatchObject({ status: "BLOCKED", blockedReason: expect.stringContaining("AUTHORIZATION_REVOKED") });
+    expect(await database.prisma.task.findUniqueOrThrow({ where: { id: guarded.id } })).toMatchObject({ status: "INTERNAL_APPROVED" });
+    const beforeReauthorization = await database.prisma.task.findUniqueOrThrow({ where: { id: guarded.id } });
+    await routing.configure(f.manager, guarded.id, { expectedVersion: beforeReauthorization.version, internal: true, client: true, reason: "Current project lead reauthorizes exact approved work" });
+    await routing.runBatch();
+    expect(await database.prisma.clientReviewItem.count({ where: { taskId: guarded.id } })).toBe(1);
+    expect(await database.prisma.taskReviewRoutingAuthorization.count({ where: { taskId: guarded.id } })).toBe(3);
+    expect(await database.prisma.taskReviewRoutingAttempt.count({ where: { taskId: guarded.id, status: "SENT" } })).toBe(1);
+
+
+  });
+
 });

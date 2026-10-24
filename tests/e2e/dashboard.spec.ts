@@ -1,3 +1,4 @@
+import { verifyDashboardSummaryLayout } from "./dashboard-summary-layout.js";
 import { expect, test } from "@playwright/test";
 import { isS27DisposableTestTarget, matchesS27DisposableServer } from "../../apps/api/src/s27-disposable-test-target.js";
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
@@ -17,7 +18,7 @@ test("S24 dashboard reports freeze, export, history and schedule; staff retain p
     const ready = page.waitForResponse(response => new URL(response.url()).pathname === "/api/v1/dashboard/sources/tasks" && response.request().method() === "GET", { timeout: 60_000 });
     if (reload) await page.reload(); else await page.goto("/dashboard");
     expect((await ready).status()).toBe(200);
-    await expect(page.getByRole("heading", { name: "Dashboard", exact: true, level: 2 })).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard", exact: true, level: 1 })).toBeVisible({ timeout: 60_000 });
     console.info(`[s24-e2e] dashboard load ${Date.now() - startedAt}ms`);
   };
   test.skip((process.env.S24_E2E_ENABLED !== "1" && process.env.S25_E2E_ENABLED !== "1" && process.env.S27_E2E_ENABLED !== "1") || !fixtureUrl, "Set an approved isolated S24, S25, or S27 database acceptance flag");
@@ -65,6 +66,16 @@ test("S24 dashboard reports freeze, export, history and schedule; staff retain p
   await mkdir(screenshotDirectory, { recursive: true });
   await context.addCookies([{ name: "sense_sid", value: ownerSecret, url: baseURL!, httpOnly: true, sameSite: "Strict" }]);
   await openDashboard();
+  const summaryViewport = page.viewportSize()!;
+  for (const summaryWidth of [1440, 1024, 859, 783, 600, 390, 320]) {
+    await page.setViewportSize({ width: summaryWidth, height: 884 });
+    await verifyDashboardSummaryLayout(page, testInfo, summaryWidth);
+    const summaryTrigger = page.locator("a.dv-summary-overdue");
+    await summaryTrigger.focus();
+    await expect(summaryTrigger).toBeFocused();
+    await expect(summaryTrigger).toHaveAttribute("href", /tasks/);
+  }
+  await page.setViewportSize(summaryViewport);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: resolve(screenshotDirectory, `dashboard-${testInfo.project.name}-overview.png`), fullPage: false });
 

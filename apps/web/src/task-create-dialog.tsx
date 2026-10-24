@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import "./task-create-dialog.css";
 
@@ -33,7 +33,12 @@ export function TaskCreateDialog({ title, variant, children, onRequestClose, bus
     suppressCloseRef.current = false;
     body.style.overflow = "hidden";
     if (typeof dialog.showModal === "function" && !dialog.open) dialog.showModal();
-    headingRef.current?.focus({ preventScroll: true });
+    const headingTarget = headingRef.current ?? dialog;
+    // On mobile the dialog is a bottom sheet; move focus to the first meaningful control
+    // so the virtual keyboard doesn't cover the heading the user already sees.
+    const sheetMode = window.matchMedia?.("(max-width: 700px)").matches;
+    const firstField = sheetMode ? (dialog.querySelector<HTMLElement>(".task-quick-capture input, .task-quick-capture select, .task-quick-capture textarea") ?? headingTarget) : headingTarget;
+    firstField.focus({ preventScroll: true });
     return () => {
       suppressCloseRef.current = true;
       if (dialog.open) dialog.close();
@@ -49,6 +54,23 @@ export function TaskCreateDialog({ title, variant, children, onRequestClose, bus
   };
   if (typeof document === "undefined") return null;
   const descriptionId = ariaDescription ? "task-create-dialog-description" : undefined;
+  // Enter in the title field submits the form immediately — the fastest path
+  // to creating a task. The parent's validation guards incomplete payloads.
+  const handleGlobalKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+    const active = document.activeElement;
+    if (active instanceof HTMLInputElement && (active.name === "title" || active.getAttribute("aria-label") === "Task name")) {
+      const form = active.closest("form") ?? dialogRef.current?.querySelector("form") ?? null;
+      if (form instanceof HTMLFormElement) {
+        event.preventDefault();
+        form.requestSubmit();
+      }
+    }
+  };
+  useEffect(() => {
+    document.addEventListener("keydown", handleGlobalKeyDown, true);
+    return () => document.removeEventListener("keydown", handleGlobalKeyDown, true);
+  }, []);
   return createPortal(
     <dialog
       ref={dialogRef}

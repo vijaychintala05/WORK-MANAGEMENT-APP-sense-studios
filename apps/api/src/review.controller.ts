@@ -1,3 +1,4 @@
+import { ReviewRoutingService } from "./review-routing.service.js";
 import { BadRequestException, Body, Controller, ForbiddenException, Get, Headers, Inject, Param, Post, Query, Req, Res } from "@nestjs/common";
 import type { Request, Response } from "express";
 import { z } from "zod";
@@ -20,9 +21,11 @@ const submit = z.object({
   reason,
   expectedVersion: z.number().int().positive(),
   revisionId: uuid.optional(),
+  fileId: uuid.optional(),
+  reviewUrl: z.string().max(2048).optional(),
   annotations,
   markupFileId: uuid.optional()
-}).strict();
+}).strict().refine(value => [value.revisionId, value.fileId, value.reviewUrl].filter(Boolean).length === 1, "Choose one file, drawing revision or review link");
 const start = z.object({ reason }).strict();
 const comment = z.object({
   comment: z.string().trim().min(1).max(2000),
@@ -59,6 +62,7 @@ export class ReviewController {
     private readonly identity: IdentityService,
     private readonly projects: ProjectService,
     private readonly reviews: ReviewService,
+    private readonly routing: ReviewRoutingService,
     @Inject(RUNTIME_CONFIG) private readonly config: RuntimeConfig
   ) {}
 
@@ -83,6 +87,24 @@ export class ReviewController {
   }
 
   private noStore(response: Response) { response.setHeader("Cache-Control", "no-store"); }
+
+  @Post("tasks/:taskId/routing")
+  async configureRouting(@Req() request: Request, @Headers("x-csrf-token") csrf: string | undefined, @Param("taskId") taskId: string, @Body() body: unknown) {
+    return this.routing.configure(await this.mutate(request, csrf), parse(uuid, taskId), parse(z.object({ expectedVersion: z.number().int().positive(), internal: z.boolean(), client: z.boolean(), reason }).strict(), body));
+  }
+  @Post("tasks/:taskId/routing/retry")
+  async retryRouting(@Req() request: Request, @Headers("x-csrf-token") csrf: string | undefined, @Param("taskId") taskId: string) {
+    return this.routing.retry(await this.mutate(request, csrf), parse(uuid, taskId));
+  }
+  @Post("tasks/:taskId/routing/revoke")
+  async revokeRouting(@Req() request: Request, @Headers("x-csrf-token") csrf: string | undefined, @Param("taskId") taskId: string, @Body() body: unknown) {
+    return this.routing.revoke(await this.mutate(request, csrf), parse(uuid, taskId), parse(roundReason, body).reason);
+  }
+  @Get("projects/:projectId/confirmed-drawings")
+  async confirmedDrawings(@Req() request: Request, @Res({ passthrough: true }) response: Response, @Param("projectId") projectId: string) {
+    this.noStore(response); const { actor } = await this.actor(request);
+    return this.reviews.confirmedDrawings(actor, parse(uuid, projectId));
+  }
 
   @Get("actionable")
   async actionable(@Req() request: Request, @Res({ passthrough: true }) response: Response, @Query("offset") offset?: string, @Query("limit") limit?: string) {

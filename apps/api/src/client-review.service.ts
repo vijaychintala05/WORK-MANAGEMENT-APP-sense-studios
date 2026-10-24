@@ -1,3 +1,4 @@
+import { assertClientEvidenceFile, submittedEvidence, approvedWorkMatches } from "./review-work-evidence.js";
 import { ConflictException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { ClientItemDecisionKind, ClientReviewItemStatus, ClientReviewPackageStatus, ClientRevisionCategory, InternalReviewStatus, Prisma, ProjectStatus, RevisionApprovalKind, RevisionState, TaskReviewRequirement, TaskStatus, TaskType } from "./generated/prisma/client.js";
@@ -16,9 +17,10 @@ type ItemSnapshot = {
   taskId: string; taskVersion: number; title: string; description: string | null; ownerEmployeeId: string; targetDate: string;
   startDate: string | null; estimatedHours: number | null; tags: string[]; checklist: Prisma.JsonValue; planItemId: string | null;
   reviewRequirement: string; revisionId: string | null; drawingId: string | null; fileId: string | null; blobId: string | null;
+  workSubmissionId?: string; workEvidence?: import("./review-work-evidence.js").WorkEvidence;
   sha256: string | null; series: string | null; number: number | null;
 };
-type ItemInput = { taskId: string; expectedTaskVersion: number; revisionId?: string | undefined; label: string };
+type ItemInput = { taskId: string; expectedTaskVersion: number; revisionId?: string | undefined; workSubmissionId?: string | undefined; label: string };
 type ItemBinding = { purpose: "CLIENT_ITEM_APPROVAL"; itemId: string; itemVersion: number; snapshot: Prisma.JsonValue; signatureName: string; consent: true; comment: string };
 type FinalBinding = { purpose: "CLIENT_FINAL_APPROVAL"; packageId: string; packageVersion: number; items: unknown[]; signatureName: string; consent: true; comment: string };
 
@@ -102,6 +104,7 @@ export class ClientReviewService {
     return {
       id: item.id, packageId: item.packageId, taskId: item.taskId, revisionId: item.revisionId, label: item.label, status: item.status,
       version: item.version, task, revision: revision ? { id: revision.id, label: `${revision.series}${revision.number}`, mimeType: blob?.mimeType ?? null } : null,
+      workEvidence: submittedEvidence(item.snapshot),
       permissions: { view: permission.view, comment: permission.comment, review: permission.review, approve: permission.approve, download: permission.download },
       decision, comments: namedComments, ownApprovalHistory: ownHistory
     };
@@ -136,7 +139,17 @@ export class ClientReviewService {
             if (/pdf|image/.test(file.blob.mimeType)) revisions.push({ id: revision.id, label: `${revision.series}${revision.number}`, state: revision.state, drawingId: revision.drawingId });
           } catch (error) { if (!(error instanceof ForbiddenException)) throw error; }
         }
-        eligibleTasks.push({ ...task, targetDate: date(task.targetDate), revisions });
+        let approvedWork: { submissionId: string; revisionId: string | null; kind: string } | null = null;
+        const latest = await tx.reviewSubmission.findFirst({ where: { taskId: task.id }, orderBy: { roundNumber: "desc" } });
+        const work = latest ? submittedEvidence(latest.taskSnapshot) : null;
+        if (latest && work && (await tx.reviewRound.findUnique({ where: { submissionId: latest.id } }))?.status === InternalReviewStatus.APPROVED) {
+          try {
+            if (work.fileId) await this.documents.authorizeFile(tx, actor, work.fileId);
+            await assertClientEvidenceFile(tx, actor.organizationId, projectId, work);
+            approvedWork = { submissionId: latest.id, revisionId: latest.revisionId, kind: work.kind };
+          } catch (error) { if (!(error instanceof ForbiddenException || error instanceof NotFoundException)) throw error; }
+        }
+        eligibleTasks.push({ ...task, targetDate: date(task.targetDate), revisions, approvedWork });
       }
       let canClassify = false;
       let canAssignCorrection = false;
@@ -152,7 +165,10 @@ export class ClientReviewService {
   }
 
   async createPackage(actor: ProjectActor, projectId: string, input: { title: string; reason: string; items: ItemInput[] }) {
-    return this.tx(async (tx) => {
+    return this.tx(tx => this.createPackageWithin(tx, actor, projectId, input));
+  }
+
+  async createPackageWithin(tx: Tx, actor: ProjectActor, projectId: string, input: { title: string; reason: string; items: ItemInput[] }) {
       const { project } = await this.staffProject(tx, actor, projectId, "manage");
       if (project.status !== ProjectStatus.ACTIVE || !input.items.length || new Set(input.items.map((item) => item.taskId)).size !== input.items.length) throw new ConflictException("An Active project and distinct review tasks are required");
       const items = [...input.items].sort((a, b) => a.taskId.localeCompare(b.taskId));
@@ -161,9 +177,29 @@ export class ClientReviewService {
         await tx.$queryRaw`SELECT "id" FROM "tasks" WHERE "id"=${item.taskId}::uuid FOR UPDATE`;
         const found = await this.taskSnapshot(tx, projectId, item.taskId, item.revisionId);
         const { task, revision } = found;
+        let submission = item.workSubmissionId ? await tx.reviewSubmission.findFirst({ where: { id: item.workSubmissionId, taskId: task.id, projectId, organizationId: actor.organizationId } }) : null;
+        if (!item.workSubmissionId && item.revisionId) {
+          const latest = await tx.reviewSubmission.findFirst({ where: { taskId: task.id }, orderBy: { roundNumber: "desc" } });
+          if (latest?.revisionId === item.revisionId && submittedEvidence(latest.taskSnapshot)) { submission = latest; item.workSubmissionId = latest.id; }
+        }
+        const evidence = submission ? submittedEvidence(submission.taskSnapshot) : null;
+        if (evidence) await assertClientEvidenceFile(tx, actor.organizationId, projectId, evidence);
+        if (item.workSubmissionId) {
+          const latest = await tx.reviewSubmission.findFirst({ where: { taskId: task.id }, orderBy: { roundNumber: "desc" } });
+          const round = submission ? await tx.reviewRound.findUnique({ where: { submissionId: submission.id } }) : null;
+          if (!submission || latest?.id !== submission.id || !evidence || round?.status !== InternalReviewStatus.APPROVED || !approvedWorkMatches(task, submission.taskSnapshot) || submission.revisionId !== (revision?.id ?? null)) throw new ConflictException("Client review requires the exact latest internally approved work");
+          if (evidence.fileId) {
+            const file = await this.documents.authorizeFile(tx, actor, evidence.fileId);
+            if (file.document.projectId !== projectId || file.blob.id !== evidence.blobId || file.blob.sha256 !== evidence.sha256 || file.document.confidential || !["application/pdf", "image/png", "image/jpeg", "image/gif", "image/webp"].includes(file.blob.mimeType)) throw new ForbiddenException("Client evidence must be an accessible non-confidential PDF or image");
+          }
+          found.snapshot.workSubmissionId = submission.id;
+          found.snapshot.workEvidence = evidence;
+          if (!revision) Object.assign(found.snapshot, { fileId: evidence.fileId, blobId: evidence.blobId, sha256: evidence.sha256 });
+        }
+        if (!revision && !evidence) throw new ConflictException("A file or review link is required");
         if (task.version !== item.expectedTaskVersion || task.requiresReassignment || ![TaskStatus.IN_PROGRESS, TaskStatus.INTERNAL_APPROVED].includes(task.status as "IN_PROGRESS" | "INTERNAL_APPROVED")) throw new ConflictException("Task changed or is unavailable for client review");
         if (task.reviewRequirement === TaskReviewRequirement.BOTH) {
-          if (task.status !== TaskStatus.INTERNAL_APPROVED || !revision || !(await this.exactInternalApproval(tx, task.id, revision.id))) throw new ConflictException("BOTH tasks require independent internal approval of this exact revision");
+          if (task.status !== TaskStatus.INTERNAL_APPROVED || (!evidence && !revision) || (revision && !(await this.exactInternalApproval(tx, task.id, revision.id)))) throw new ConflictException("BOTH tasks require independent internal approval of this exact revision");
         } else if (task.reviewRequirement === TaskReviewRequirement.CLIENT) {
           if (task.status !== TaskStatus.IN_PROGRESS) throw new ConflictException("CLIENT tasks must be in progress");
           if (revision) {
@@ -184,8 +220,8 @@ export class ClientReviewService {
       for (const { task, revision, snapshot, input: itemInput } of resolved) {
         const updatedTask = await this.taskStatus(tx, actor.accountId, task, TaskStatus.SUBMITTED_CLIENT_REVIEW, input.reason, "task.updated");
         const exactSnapshot = { ...snapshot, taskVersion: updatedTask.version };
-        const item = await tx.clientReviewItem.create({ data: { organizationId: actor.organizationId, projectId, packageId: reviewPackage.id, taskId: task.id, revisionId: revision?.id ?? null, snapshot: json(exactSnapshot), label: itemInput.label.trim() } });
-        const eventId = await recordProjectEvent(tx, { organizationId: actor.organizationId, actorId: actor.accountId, eventName: "client.review_sent", subjectType: "client_review_item", subjectId: item.id, reason: input.reason, after: { itemId: item.id, packageId: reviewPackage.id, projectId, taskId: item.taskId, revisionId: item.revisionId, version: item.version, snapshot: exactSnapshot } });
+        const item = await tx.clientReviewItem.create({ data: { organizationId: actor.organizationId, projectId, packageId: reviewPackage.id, taskId: task.id, revisionId: revision?.id ?? null, ...(itemInput.workSubmissionId ? { workSubmissionId: itemInput.workSubmissionId } : {}), snapshot: json(exactSnapshot), label: itemInput.label.trim() } });
+        const eventId = await recordProjectEvent(tx, { organizationId: actor.organizationId, actorId: actor.accountId, eventName: "client.review_sent", subjectType: "client_review_item", subjectId: item.id, reason: input.reason, after: { itemId: item.id, packageId: reviewPackage.id, projectId, taskId: item.taskId, revisionId: item.revisionId, version: item.version, snapshot: exactSnapshot.workEvidence?.kind === "LINK" ? { ...exactSnapshot, workEvidence: { ...exactSnapshot.workEvidence, url: null } } : exactSnapshot } });
         const audit = await tx.domainEvent.findUniqueOrThrow({ where: { id: eventId } });
         const auditEventId = (audit.payload as { auditEventId: string }).auditEventId;
         createdItems.push({ item, auditEventId });
@@ -198,7 +234,7 @@ export class ClientReviewService {
       }
       void packageEventId;
       return { id: reviewPackage.id, title: reviewPackage.title, status: reviewPackage.status, version: reviewPackage.version, createdAt: reviewPackage.createdAt, items: createdItems.map(({ item }) => ({ id: item.id, taskId: item.taskId, revisionId: item.revisionId, label: item.label, status: item.status, version: item.version })) };
-    });
+
   }
 
   async classify(actor: ProjectActor, itemId: string, input: { category: ClientRevisionCategory; expectedVersion: number; reason: string }) {
@@ -376,7 +412,7 @@ export class ClientReviewService {
     for (const item of items) {
       const decision = await tx.clientItemDecision.findUnique({ where: { itemId: item.id } });
       const snapshot = item.snapshot as ItemSnapshot;
-      snapshots.push({ itemId: item.id, itemVersion: item.version, decisionId: decision?.id ?? null, taskId: item.taskId, revisionId: item.revisionId, drawingId: snapshot.drawingId, fileId: snapshot.fileId, blobId: snapshot.blobId, sha256: snapshot.sha256 });
+      snapshots.push({ itemId: item.id, itemVersion: item.version, decisionId: decision?.id ?? null, taskId: item.taskId, revisionId: item.revisionId, drawingId: snapshot.drawingId, fileId: snapshot.fileId, blobId: snapshot.blobId, sha256: snapshot.sha256, ...(item.workSubmissionId ? { workSubmissionId: item.workSubmissionId, evidenceDigest: snapshot.workEvidence?.digest } : {}) });
     }
     return snapshots;
   }
@@ -390,6 +426,12 @@ export class ClientReviewService {
       const task = await tx.task.findUniqueOrThrow({ where: { id: item.taskId } });
       if (task.status !== TaskStatus.CLIENT_APPROVED) throw new ConflictException("Item task approval state is stale");
       const taskSnapshot = item.snapshot as ItemSnapshot;
+      if (item.workSubmissionId) {
+        const submission = await tx.reviewSubmission.findUniqueOrThrow({ where: { id: item.workSubmissionId } });
+        const evidence = submittedEvidence(submission.taskSnapshot);
+        const itemEvidence = submittedEvidence(item.snapshot);
+        if (!evidence || evidence.digest !== itemEvidence?.digest || !approvedWorkMatches(task, submission.taskSnapshot)) throw new ConflictException("Approved work evidence changed");
+      }
       if (taskSnapshot.title !== task.title || taskSnapshot.description !== task.description || taskSnapshot.ownerEmployeeId !== task.primaryOwnerEmployeeId || taskSnapshot.targetDate !== date(task.targetDate) || taskSnapshot.startDate !== date(task.startDate) || taskSnapshot.estimatedHours !== (task.estimatedHours === null ? null : Number(task.estimatedHours)) || taskSnapshot.planItemId !== task.planItemId || JSON.stringify(taskSnapshot.tags) !== JSON.stringify(task.tags) || JSON.stringify(taskSnapshot.checklist) !== JSON.stringify(task.checklist)) throw new ConflictException("Current task no longer matches the published review item");
       if (item.revisionId) {
         const revision = await tx.documentRevision.findFirst({ where: { id: item.revisionId, projectId } });

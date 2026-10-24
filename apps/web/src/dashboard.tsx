@@ -1,3 +1,4 @@
+import { workDate, workState } from "./work-labels";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -8,6 +9,8 @@ import { SortableContext, arrayMove, useSortable, sortableKeyboardCoordinates } 
 import { CSS } from "@dnd-kit/utilities";
 import "./dashboard.css";
 import "./dashboard-widgets.css";
+import "./dashboard-data.css";
+import { DashboardDataIcon, DashboardTaskMix, DashboardProjectOverview } from "./dashboard-data-visuals.js";
 import {
   WIDGET_INFO,
   type WidgetId, type DashboardLayout, type LayoutMode,
@@ -96,9 +99,9 @@ function SortableWidget({
   const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
   const info = WIDGET_INFO[id as WidgetId];
   return (
-    <section ref={setNodeRef} data-widget-id={id} className={`dv-widget${isDragging ? " is-dragging" : ""}${editing ? " is-editing" : ""}`} style={style}>
+    <section ref={setNodeRef} data-widget-id={id} data-widget={id} className={`dv-widget${isDragging ? " is-dragging" : ""}${editing ? " is-editing" : ""}`} style={style}>
       <div className="dv-widget-head">
-        <div><h3>{info?.label ?? id}</h3><p>{info?.desc ?? ""}</p></div>
+        <div className="dv-widget-heading"><span className="dv-widget-mark"><DashboardDataIcon name={id} /></span><div><h3>{info?.label ?? id}</h3><p>{info?.desc ?? ""}</p></div></div>
         {editing && (
           <div className="dv-widget-tools">
             <button type="button" className="dv-edit-hbtn" title="Hide widget" aria-label={`Hide ${info?.label ?? id} widget`} onClick={() => onHide(id)}>−</button>
@@ -117,9 +120,9 @@ function SortableWidget({
   );
 }
 
-function WidgetLane({ id, children }: { id: string; children: React.ReactNode }): React.JSX.Element {
-  const { setNodeRef, isOver } = useDroppable({ id });
-  return <div ref={setNodeRef} className={`dv-widget-col${isOver ? " is-over" : ""}`}>{children}</div>;
+function WidgetLane({ id, droppable, children }: { id: string; droppable: boolean; children: React.ReactNode }): React.JSX.Element {
+  const { setNodeRef, isOver } = useDroppable({ id, disabled: !droppable });
+  return <div ref={setNodeRef} className={`dv-widget-col${droppable && isOver ? " is-over" : ""}`}>{children}</div>;
 }
 
 export function DashboardWorkspace({ csrfToken, accountId, owner, initialTab = "dashboard", focused = false }: { csrfToken: string; accountId: string; owner: boolean; initialTab?: "dashboard" | "summaries" | "reports" | "schedules"; focused?: boolean }): React.JSX.Element {
@@ -263,14 +266,13 @@ export function DashboardWorkspace({ csrfToken, accountId, owner, initialTab = "
   const taskSectionCount = (key: string): string => !tasksState || tasksState.loading ? "Loading…"
     : taskSectionNote(key) ? "Unavailable" : String(tasksState.sections.find(section => section.key === key)!.rows.length);
   const taskAttentionRows = tasksState?.sections.find(s => s.key === "attention")?.rows ?? [];
-  const taskBlockedRows = tasksState?.sections.find(s => s.key === "waiting")?.rows ?? [];
 
   const kpiTiles = [
-    { label: "Overdue", value: taskSectionCount("overdue"), cls: "dn", route: "/tasks", sub: "Past due and incomplete" },
-    { label: "Due today", value: taskSectionCount("today"), cls: "", route: "/tasks", sub: "Committed date when present, otherwise Target" },
-    { label: "High priority", value: taskSectionCount("priority"), cls: "dn", route: "/tasks", sub: "High and critical priority" },
-    { label: "Waiting / blocked", value: taskSectionCount("waiting"), cls: taskBlockedRows.length ? "dn" : "", route: "/tasks", sub: "Waiting state and blockers" },
-    { label: "Review / corrections", value: taskSectionCount("reviews"), cls: "", route: "/tasks", sub: "Task states only" },
+    { key: "overdue", label: "Overdue", value: taskSectionCount("overdue"), route: "/tasks", sub: "Past due and incomplete" },
+    { key: "today", label: "Due today", value: taskSectionCount("today"), route: "/tasks", sub: "Committed date when present, otherwise Target" },
+    { key: "priority", label: "High priority", value: taskSectionCount("priority"), route: "/tasks", sub: "High and critical priority" },
+    { key: "waiting", label: "Waiting / blocked", value: taskSectionCount("waiting"), route: "/tasks", sub: "Waiting state and blockers" },
+    { key: "reviews", label: "Review / corrections", value: taskSectionCount("reviews"), route: "/tasks", sub: "Task states only" },
   ];
 
   const kind: "OWNER" | "STAFF" = owner ? "OWNER" : "STAFF";
@@ -307,7 +309,15 @@ export function DashboardWorkspace({ csrfToken, accountId, owner, initialTab = "
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
-  const updateLayout = (next: DashboardLayout): void => { visitLayouts.current.set(visitLayoutKey, next); setLayout(next); setLayoutNotice(saveLayout(accountId, next, mode) ? "Layout saved on this device." : "Layout changed for this visit; browser storage is unavailable."); };
+  const updateLayout = (next: DashboardLayout): void => {
+    // Resolve the device key from the current window size (not the render-time
+    // `mode` closure) so a resize between drag-end and the layout write cannot
+    // persist this layout under the wrong device preset.
+    const currentMode: LayoutMode = window.innerWidth <= 760 ? "mobile" : "desktop";
+    visitLayouts.current.set(`${accountId}:${currentMode}`, next);
+    setLayout(next);
+    setLayoutNotice(saveLayout(accountId, next, currentMode) ? "Layout saved on this device." : "Layout changed for this visit; browser storage is unavailable.");
+  };
   const hideWidget = (id: string): void => {
     const wid = id as WidgetId;
     updateLayout({ ...layout, hidden: [...layout.hidden, wid], leftOrder: layout.leftOrder.filter(w => w !== wid), rightOrder: layout.rightOrder.filter(w => w !== wid) });
@@ -402,6 +412,7 @@ export function DashboardWorkspace({ csrfToken, accountId, owner, initialTab = "
                     <div className="dv-decisions-chip"><strong>{(sourceData.decisions?.decisions?.items ?? []).length}</strong><span className="dv-decisions-chip-label">Approval requests</span></div>
                     <div className="dv-decisions-chip review"><strong>{taskSectionCount("reviews")}</strong><span className="dv-decisions-chip-label">Task reviews</span></div>
                   </div>
+                  <div className="dv-decisions-section-label">Approval obligations</div>
                   {(sourceData.decisions?.decisions?.items ?? []).slice(0, 3).map((item, i) => {
                     const row = typeof item === "object" && item !== null ? item as Record<string, unknown> : {};
                     const route = typeof row.route === "string" ? row.route : "/decisions";
@@ -427,7 +438,7 @@ export function DashboardWorkspace({ csrfToken, accountId, owner, initialTab = "
                           <span className="dv-attention-stripe review" aria-hidden="true"></span>
                           <div className="dv-attention-main">
                             <div className="dv-attention-title">{round.taskTitle}{round.revisionLabel ? ` · ${round.revisionLabel}` : ""}</div>
-                            <div className="dv-attention-meta">{[round.projectTitle, `Round ${round.roundNumber}`, round.status.replace(/_/g, " "), round.dueDate].filter(Boolean).join(" · ")}</div>
+                            <div className="dv-attention-meta">{[round.projectTitle, `Round ${round.roundNumber}`, workState(round.status), round.dueDate ? workDate(round.dueDate) : ""].filter(Boolean).join(" · ")}</div>
                           </div>
                         </Link>
                       )) : <div className="dv-source-loading">No assigned review rounds in the authorized review source.</div>}
@@ -440,9 +451,11 @@ export function DashboardWorkspace({ csrfToken, accountId, owner, initialTab = "
       case "projects":
         return (
           <div className="dv-widget-body">
-            {healthState?.loading ? <div className="dv-source-loading">Reading projects…</div>
+            {!healthState || healthState.loading ? <div className="dv-source-loading">Reading projects…</div>
               : healthState?.error ? <div className="dv-source-error"><strong>Project source unavailable</strong><button type="button" onClick={() => void loadSource("health")}>Retry</button></div>
               : (
+                <>
+                <DashboardProjectOverview available={healthState.sections.some(section => section.key === "health" && !section.unavailable)} rows={healthRows} />
                 <div className="dv-projects-grid">
                   {healthRows.slice(0, 4).map(row => (
                     <Link key={row.id} to={row.route ?? "/projects"} className="dv-project-card">
@@ -450,7 +463,7 @@ export function DashboardWorkspace({ csrfToken, accountId, owner, initialTab = "
                         <span className="dv-project-name">{row.label}</span>
                         {typeof row.score === "number" && Number.isFinite(row.score)
                           ? <span className="dv-project-signal other">{row.status ?? "Recorded score"}</span>
-                          : <span className="dv-project-signal other">{row.status ?? "Unrated"}</span>}
+                          : <span className="dv-project-signal other">{row.status === "UNAVAILABLE" ? "Evidence needed" : row.status?.replace(/_/g, " ") ?? "Unrated"}</span>}
                       </div>
                       <div className="dv-project-meta">{[row.status, row.value].filter(v => v && v !== "—").join(" · ")}</div>{typeof row.score === "number" && Number.isFinite(row.score) && <HealthScore row={row} />}
                       <span className="dv-project-link">Open workspace →</span>
@@ -458,7 +471,7 @@ export function DashboardWorkspace({ csrfToken, accountId, owner, initialTab = "
                   ))}
                   {healthState?.sections.filter(section => section.unavailable).map(section => <p key={section.key}>{section.unavailable}</p>)}
                   {healthRows.length === 0 && !healthState?.sections.some(section => section.unavailable) && <div className="dv-source-loading">No authorized project snapshots yet.</div>}
-                </div>
+                </div></>
               )}
           </div>
         );
@@ -489,16 +502,17 @@ export function DashboardWorkspace({ csrfToken, accountId, owner, initialTab = "
   };
 
   return <section className="identity-section dashboard-workspace" aria-labelledby="dashboard-heading">
-    <div className="dashboard-heading"><div><div className="eyebrow">{initialTab === "reports" ? "INSIGHTS" : "WORKSPACE OVERVIEW"}</div><h2 id="dashboard-heading">{initialTab === "reports" ? "Reports" : "Dashboard"}</h2><p>{initialTab === "reports" ? "Preview current report data or open an immutable retained snapshot." : "A current view of decisions, tasks and project updates available to your account."}</p></div><button type="button" className="secondary-action" onClick={() => { void load(true); setAccessRefresh(value => value + 1); }} disabled={busy}>Refresh</button></div>
+    <div className="dashboard-heading"><div><div className="eyebrow">{initialTab === "reports" ? "INSIGHTS" : "WORKSPACE OVERVIEW"}</div><h1 id="dashboard-heading">{initialTab === "reports" ? "Reports" : "Dashboard"}</h1><p>{initialTab === "reports" ? "Preview current report data or open a saved report." : "A current view of decisions, tasks and project updates available to your account."}</p></div><button type="button" className="secondary-action" onClick={() => { void load(true); setAccessRefresh(value => value + 1); }} disabled={busy}>Refresh</button></div>
     {!focused && <nav className="dashboard-tabs" aria-label="Dashboard sections">{([['dashboard', 'Overview'], ['summaries', 'Scheduled summaries'], ['reports', 'Reports'], ['schedules', 'Reminders & schedules']] as const).map(([key, label]) => <button type="button" key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>{label}</button>)}</nav>}
     {error && <p className="auth-error" role="alert">{error} <button type="button" className="secondary-action" onClick={() => void load(true)}>Retry supporting data</button></p>}{notice && <p className="notice" role="status">{notice}</p>}
     {loading && tab !== "dashboard" && <p role="status">Loading reports, summaries, reminders, and schedules…</p>}
     {tab === "dashboard" && <>
-      <div className="dashboard-summary"><span><small>Organization date</small><strong>{organizationDateLabel}</strong></span><span><small>Account type</small><strong>{dash.role}</strong></span></div>
+      <div className="dashboard-summary" aria-label="Dashboard source context"><span><small>Organization date</small><strong>{organizationDateLabel}</strong></span><span><small>Account type</small><strong>{dash.role}</strong></span></div>
 
       {/* V10 fixed summary strip — non-draggable, non-hidable.
           Five independent task summaries; counts overlap and must not
           be summed into a total (V10 §G.1). */}
+      <div className="dv-section-heading"><h3>Today at a glance</h3><span>Independent task summaries</span></div>
       <div className="dv-summary-strip" aria-label="Five independent task summaries; counts overlap and must not be summed">
         {kpiTiles.map(tile => {
           const loading = !tasksState || tasksState.loading;
@@ -507,20 +521,22 @@ export function DashboardWorkspace({ csrfToken, accountId, owner, initialTab = "
             <Link
               key={tile.label}
               to={tile.route}
-              className={`dv-summary-card${loading ? " is-loading" : ""}`}
+              className={`dv-summary-card dv-summary-${tile.key}${loading ? " is-loading" : ""}`}
               data-summary={tile.label.toLowerCase().replace(/\s+/g, "-")}
               aria-label={`${tile.label} · ${loading ? "source loading" : unavailable ? "source unavailable" : tile.value + " matching tasks"}`}
+              aria-describedby={!loading && !unavailable ? `dashboard-task-mix-${tile.key}` : undefined}
             >
               <div className="dv-summary-top">
                 <strong>{tile.label}</strong>
-                <span className="dv-summary-icon" aria-hidden="true"></span>
+                <span className="dv-summary-icon"><DashboardDataIcon name={tile.key} /></span>
               </div>
               {loading
                 ? <><div className="dv-summary-skeleton"></div><div className="dv-summary-cue">Loading…</div></>
                 : unavailable
                   ? <div className="dv-summary-unavailable">Unavailable</div>
                   : <><div className="dv-summary-count" data-summary={tile.label.toLowerCase().replace(/\s+/g, "-")}>{tile.value}</div><div className="dv-summary-cue">{tile.sub}</div></>}
-              <span className="dv-summary-footer">Open task workspace →</span>
+              {!loading && !unavailable && <DashboardTaskMix descriptionId={`dashboard-task-mix-${tile.key}`} rows={tasksState?.sections.find(section => section.key === tile.key)?.rows ?? []} />}
+              <span className="dv-summary-arrow" aria-hidden="true">→</span>
             </Link>
           );
         })}
@@ -540,7 +556,7 @@ export function DashboardWorkspace({ csrfToken, accountId, owner, initialTab = "
         onDragEnd={commitDrag}
       >
         <div className={`dv-widget-grid${editing ? " is-editing" : ""}`} onPointerDown={event => { if (event.pointerType === "touch" && !editing && !(event.target as HTMLElement).closest("button, input, select, textarea, a")) longPress.current = setTimeout(() => setEditing(true), 600); }} onPointerUp={cancelLongPress} onPointerCancel={cancelLongPress} onPointerMove={cancelLongPress}>
-          <WidgetLane id="lane-left">
+          <WidgetLane id="lane-left" droppable>
             {editing && (
               <div className="dv-edit-toolbar">
                 <p><strong>Customize widgets.</strong> Drag to reposition, hide optional widgets, or add from the gallery. Top summary cards and the bottom Attention Queue stay fixed.</p>
@@ -583,7 +599,7 @@ export function DashboardWorkspace({ csrfToken, accountId, owner, initialTab = "
               </div>
             )}
           </WidgetLane>
-          <WidgetLane id="lane-right">
+          <WidgetLane id="lane-right" droppable={mode === "desktop"}>
             <SortableContext items={visibleRight}>
               {visibleRight.map(id => (
                 <SortableWidget
@@ -631,8 +647,8 @@ export function DashboardWorkspace({ csrfToken, accountId, owner, initialTab = "
                 <div className="dv-attention-meta">{[row.status, row.date].filter(Boolean).join(" · ")}</div>
               </div>
               <div className="dv-attention-right">
-                <span className={`dv-attention-due${row.date && dash.today && row.date < dash.today ? " overdue" : ""}`}>{row.date ?? ""}</span>
-                <span className={`dv-attention-chip ${row.status?.includes("WAITING") ? "waiting" : ""}`}>{row.status?.replace(/_/g, " ") ?? ""}</span>
+                <span className={`dv-attention-due${row.date && dash.today && row.date < dash.today ? " overdue" : ""}`}>{row.date ? workDate(row.date) : ""}</span>
+                <span className={`dv-attention-chip ${row.status?.includes("WAITING") ? "waiting" : ""}`}>{row.status ? workState(row.status) : ""}</span>
               </div>
             </Link>
           )) : (

@@ -6,6 +6,10 @@ import "./styles.css";
 import "./studio-theme.css";
 import { PhoneInstall, PwaUpdateNotice } from "./pwa-delivery.js";
 import { ReleaseStatus } from "./release-status.js";
+import { RouteAccessibility } from "./route-accessibility.js";
+import "./ux-usability.css";
+// Load the shared shell after module styles so every internal route uses one frame.
+import "./my-work-shell.css";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("Application root is missing.");
@@ -16,6 +20,7 @@ const PublicPortfolioPage = React.lazy(async () => ({ default: (await import("./
 createRoot(root).render(
   <React.StrictMode>
     <BrowserRouter>
+      <RouteAccessibility />
       <PwaUpdateNotice />
       <Routes>
         <Route path="/install" element={<PhoneInstall />} />

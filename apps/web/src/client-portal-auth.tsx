@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AuthFrame } from "./auth-flow.js";
 import { startRegistration } from "@simplewebauthn/browser";
 import "./client-portal-auth.css";
 import { ClientReviewPortal } from "./client-review.js";
@@ -273,11 +274,7 @@ export function ClientPortalAuth({ accountOnly = false, onSessionEnded }: { acco
 
   if (!session) {
     return (
-      <main className="client-portal-auth">
-        <section className="client-portal-card" aria-labelledby="client-portal-title">
-          <p className="client-portal-eyebrow">Sense Studios</p>
-          <h1 id="client-portal-title">Client portal sign in</h1>
-          <p className="client-portal-intro">Use the email address connected to your client access.</p>
+      <AuthFrame audience="CLIENT PORTAL" title="Client portal sign in" intro="Use the email address invited to your project. We’ll email a one-time sign-in code.">
           {sessionNotice && <p className="client-portal-notice" role="status">{sessionNotice}</p>}
           <form className="client-portal-form" onSubmit={requestCode}>
             <label htmlFor="client-portal-email">Email address</label>
@@ -293,8 +290,9 @@ export function ClientPortalAuth({ accountOnly = false, onSessionEnded }: { acco
           )}
           {authStatus && <p className="client-portal-success" role="status">{authStatus}</p>}
           {authError && <p className="client-portal-error" role="alert">{authError}</p>}
-        </section>
-      </main>
+          <p className="auth-flow-help">Missing your code? Check your spam folder and confirm your email address. If you still need help, contact your studio project team.</p>
+          <a className="auth-flow-back" href="/sign-in">Other sign-in options</a>
+      </AuthFrame>
     );
   }
 

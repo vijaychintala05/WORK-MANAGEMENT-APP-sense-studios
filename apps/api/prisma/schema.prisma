@@ -389,6 +389,7 @@ model ClientReviewItem {
   packageId String @db.Uuid
   taskId String @db.Uuid
   revisionId String? @db.Uuid
+  workSubmissionId String? @unique @db.Uuid
   snapshot Json
   label String @db.VarChar(160)
   status ClientReviewItemStatus @default(PENDING)
@@ -398,6 +399,36 @@ model ClientReviewItem {
   @@unique([packageId, taskId])
   @@index([organizationId, projectId, taskId, createdAt])
   @@map("client_review_items")
+}
+
+model TaskReviewRoutingAuthorization {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid
+  projectId String @db.Uuid
+  taskId String @db.Uuid
+  authorizedById String @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  revokedAt DateTime? @db.Timestamptz(3)
+  reason String @db.VarChar(1000)
+  @@unique([id, organizationId, projectId])
+  @@index([taskId, createdAt])
+  @@map("task_review_routing_authorizations")
+}
+
+model TaskReviewRoutingAttempt {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid
+  projectId String @db.Uuid
+  taskId String @db.Uuid
+  submissionId String @db.Uuid
+  authorizationId String @db.Uuid
+  status String @default("PENDING") @db.VarChar(16)
+  blockedReason String? @db.VarChar(240)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  @@unique([submissionId, authorizationId])
+  @@index([status, updatedAt])
+  @@map("task_review_routing_attempts")
 }
 
 model ClientItemDecision {

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { loadSettings, loadActive, scoped, fileHash, verifyRelease, atomicJson, repositoryRoot } from './manifest.mjs';
+import { loadSettings, loadActive, scoped, fileHash, atomicJson, promoteRelease, repositoryRoot } from './manifest.mjs';
 import { powershell, psQuote, processIdentity, sameIdentity, listeners, ownsListeners } from './windows.mjs';
 import { hiddenTaskLauncher, taskAction } from './task-launcher.mjs';
 
@@ -24,17 +24,7 @@ async function status() {
 }
 if(command==='status')console.log(JSON.stringify(await status(),null,2));
 else if(command==='promote') {
-  const commit=process.argv[3];assert.match(commit??'',/^[a-f0-9]{40}$/);
-  const evidence=JSON.parse(fs.readFileSync(path.resolve(process.argv[4]??'')));
-  assert.equal(evidence.status,'PASS','Passing explicit release acceptance required');assert.equal(evidence.commit,commit);
-  const release=scoped(root,path.join(setting.releaseRoot,commit)),manifestFile=path.join(release,'private-manifest.json');
-  const manifest=verifyRelease(release,JSON.parse(fs.readFileSync(manifestFile)));
-  const {name,user,host,port,oid,system}=setting.runtime.database;assert.deepEqual(manifest.database,{name,user,host,port,oid,system});
-  assert.equal(evidence.manifestSha256,fileHash(manifestFile),'Acceptance covers a different artifact');
-  const pointer=scoped(root,setting.activePointer);
-  if(fs.existsSync(pointer))fs.copyFileSync(pointer,pointer+'.preserved-'+Date.now(),fs.constants.COPYFILE_EXCL);
-  atomicJson(pointer,{commit,manifestSha256:fileHash(manifestFile)});
-  console.log(JSON.stringify({promoted:commit,buildId:manifest.buildId}));
+  console.log(JSON.stringify(promoteRelease(root,process.argv[3],JSON.parse(fs.readFileSync(path.resolve(process.argv[4]??''))))));
 } else if(command==='install-startup') {
   const active=loadActive(root),bootstrap=scoped(root,'.env.staging/bootstrap');
   assert.ok(!fs.existsSync(bootstrap),'Bootstrap already installed; inspect before updating');fs.mkdirSync(bootstrap,{recursive:true});

@@ -1,3 +1,4 @@
+import { approveFixtureWork } from "./review-work-fixture.js";
 import { expect, test } from "@playwright/test";
 import { isS27DisposableTestTarget, matchesS27DisposableServer } from "../../apps/api/src/s27-disposable-test-target.js";
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
@@ -120,7 +121,8 @@ const disposableS27Database = Boolean(process.env.DATABASE_URL && isS27Disposabl
     await command(`/api/v1/projects/${project.project.id}/status`, { toStatus: "ACTIVE", expectedVersion: 3, reason: "Activate browser Design client review" });
     const task = await command("/api/v1/tasks", { projectId: project.project.id, ownerEmployeeId: workerEmployeeId, title: "Design approval brief", type: "PROJECT", priority: "MEDIUM", targetDate: "2026-12-31", reviewRequirement: "CLIENT", reason: "Create browser client approval brief" }) as { id: string; version: number };
     await command(`/api/v1/tasks/${task.id}/state`, { toState: "IN_PROGRESS", expectedVersion: task.version, reason: "Start browser client brief" });
-    const reviewPackage = await command(`/api/v1/client-reviews/projects/${project.project.id}/packages`, { title: "Design brief approval", reason: "Publish browser client approval brief", items: [{ taskId: task.id, expectedTaskVersion: 2, label: "Design approval brief" }] }) as { id: string };
+    const approvedWork = await approveFixtureWork({ page, db, origin: baseURL!, ownerHeaders, projectId: project.project.id, taskId: task.id, workerAccountId, workerEmployeeId, manualPublication: true });
+    const reviewPackage = await command(`/api/v1/client-reviews/projects/${project.project.id}/packages`, { title: "Design brief approval", reason: "Publish browser client approval brief", items: [{ taskId: task.id, expectedTaskVersion: approvedWork.version, workSubmissionId: approvedWork.submissionId, label: "Design approval brief" }] }) as { id: string };
 
     page.on("request", (request) => {
       const path = new URL(request.url()).pathname;
@@ -282,6 +284,15 @@ const disposableS27Database = Boolean(process.env.DATABASE_URL && isS27Disposabl
     await staffReviews.getByLabel("Active project").selectOption(project.project.id);
     await expect(staffReviews.getByText("Design approval brief", { exact: true })).toBeVisible();
     await expect(staffReviews.getByRole("button", { name: "Complete approved task" })).not.toBeVisible();
+    await page.goto(`/projects?projectId=${encodeURIComponent(project.project.id)}&projectSection=documents`);
+    const confirmed = page.getByRole("region", { name: "Confirmed drawings", exact: true });
+    await expect(confirmed.getByText("Design approval brief", { exact: true })).toBeVisible();
+    await expect(confirmed.getByText(/Approved link/)).toBeVisible();
+    await expect(confirmed.getByRole("link", { name: "Open approved link" })).toHaveAttribute("target", "_blank");
+    await expect(confirmed.getByText("External content may change; the approved URL is preserved.")).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
+    await page.screenshot({ path: testInfo.outputPath("review-confirmed-approved-link.png"), fullPage: true });
+
   } finally {
     if (cdp) await cdp.detach();
     await db.end();

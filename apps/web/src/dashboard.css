@@ -1,4 +1,44 @@
-.dashboard-workspace { width: 100%; min-width: 0; max-width: 100%; }
+/* ─── V10 demo shell tokens — Sense Studios Dashboard V10 Refined Shell
+   (demos/Sense_Studios_Codex_Dashboard_V10_Handoff/reference/…V10….html).
+   The dashboard owns these demo values; global :root tokens stay untouched.
+────────────────────────────────────────────────────────────────── */
+.app-shell:has(.dashboard-workspace) {
+  --sense-canvas: #f4f1e9;
+  --sense-surface: #fffdf7;
+  --sense-surface-muted: #faf8f2;
+  --sense-pine: #182c29;
+  --sense-pine-2: #29463d;
+  --sense-border: #d9d8cd;
+  --sense-border-soft: #e7e5dc;
+  --sense-active: #e3eadf;
+  --sense-gold: #e7c680;
+  --sense-gold-deep: #b98f49;
+  --sense-danger: #a7463b;
+  --sense-ink: #20332e;
+  --sense-ink-strong: #20332e;
+  --sense-ink-muted: #61736b;
+  --sense-focus: #b98f49;
+  --sense-radius-sm: 9px;
+  --sense-radius-panel: 14px;
+  --sense-radius-lg: 19px;
+  --sense-shadow-panel: 0 9px 28px rgba(34, 51, 44, 0.055);
+  --sense-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--sense-font);
+  color: var(--sense-ink);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.app-shell:has(.dashboard-workspace) .workspace-page { background: var(--sense-canvas); }
+/* The dashboard owns its page frame: cream canvas, demo content gutter,
+   no white identity card (demo .page-content). */
+.workspace-page .identity-section.dashboard-workspace {
+  margin-top: 0; padding: 0; border: 0; border-radius: 0;
+  background: transparent; box-shadow: none; font-family: var(--sense-font);
+}
+.dashboard-workspace { min-width: 0; max-width: 1560px; margin: 0 auto; padding: 27px 36px 65px; }
+@media (max-width: 1260px) { .dashboard-workspace { padding: 24px 26px 60px; } }
+@media (max-width: 1100px) { .dashboard-workspace { padding: 23px 23px 60px; } }
+@media (max-width: 760px) { .dashboard-workspace { padding: 20px 14px 32px; } }
 .dashboard-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--sense-border, #d9d8cd); }
 .dashboard-heading h2 { margin: .35rem 0; color: var(--sense-ink-strong, #29463d); font: 600 clamp(1.55rem, 2.5vw, 2rem)/1.15 Inter, ui-sans-serif, system-ui, sans-serif; letter-spacing: -.035em; }
 .dashboard-heading p { margin: .35rem 0 0; color: var(--sense-ink-muted, #61736b); line-height: 1.5; }
@@ -47,6 +87,63 @@
 .dashboard-panel-sub { color: #73827a; font-size: .82rem; }
 .dashboard-panel-link { font-size: .8rem; font-weight: 700; color: var(--sense-pine, #182c29); text-decoration: none; text-underline-offset: .15em; white-space: nowrap; flex-shrink: 0; }
 .dashboard-panel-link:hover { text-decoration: underline; }
+
+/* Demo .time-state pill: mint capsule with 6px status dot. */
+.dv-time-value { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex: none; }
+.dv-time-status { display: inline-flex; align-items: center; gap: 5px; border: 1px solid #dfebe1; background: #f5faf5; color: #5e7768; font-size: 9.5px; font-weight: 700; border-radius: 999px; padding: 5px 9px; white-space: nowrap; }
+.dv-time-status i { width: 6px; height: 6px; border-radius: 50%; background: #8dac96; display: inline-block; flex: none; }
+.dv-time-status[data-state="running"] i { background: #2b9960; box-shadow: 0 0 0 3px #dfeddf; }
+.dv-time-status[data-state="paused"] i { background: #c9a45a; }
+/* Demo .time-tracker: tighter border + stronger shadow. */
+.dv-widget[data-widget="time"] { border-color: #bdcfbf; box-shadow: 0 10px 27px rgba(24, 44, 41, 0.065); }
+/* Demo .time-hero band on the widget head: mint→paper gradient. */
+.dv-widget[data-widget="time"] .dv-widget-head { background: linear-gradient(105deg, #f5f8f0 0%, #fffdf7 66%); border-bottom: 0; }
+/* Demo .time-symbol: 40px rounded square, pale pine. */
+.dv-time-symbol { width: 40px; height: 40px; display: grid; place-items: center; background: #dfece0; border: 1px solid #c8d9c9; border-radius: 12px; color: #2a5c43; flex: none; }
+/* Demo .time-value strong: 28px pine tabular timer. */
+.dv-time-display { font-size: 28px; letter-spacing: .2px; color: var(--sense-pine, #182c29); font-variant-numeric: tabular-nums; line-height: 1; margin: 0; }
+/* Demo .time-field: 9px/760 labels, 35px selects with 8px radius. */
+.dv-time-field { color: #506c58; font-size: 9px; font-weight: 760; }
+.dv-time-field :is(input, select) { min-height: 35px; padding: 6px 9px; background: #fffefa; border: 1px solid #dedfd6; border-radius: 8px; color: #2f4438; font-size: 10.8px; font-weight: 400; }
+.dv-time-field :is(input, select):disabled { background: #f2f2ee; color: #63756b; }
+/* Demo .time-actions .btn: 35px, 10.3px/700, 8px 12px. */
+.dv-time-body > .dv-time-idle > button, .dv-time-controls button { min-height: 35px; font-size: 10.3px; padding: 8px 12px; }
+/* Demo .time-foot: mint strip, 9.5px, 7px 18px. */
+.dv-time-body > .dv-widget-foot { background: #f2f6ed; border-top: 1px solid #e6ebe1; color: #6d7e72; font-size: 9.5px; padding: 7px 18px; margin: 0 -16px; }
+/* Demo .obligation-chip (amber) and .obligation-chip.review (blue). */
+.dv-decisions-chip { padding: 8px 10px; background: #faf5e9; border-color: #e8e3d5; gap: 8px; }
+.dv-decisions-chip.review { background: #f0f4f6; border-color: #e0e8eb; }
+.dv-decisions-chip strong { color: #8c6526; font-size: 19px; font-weight: 800; }
+.dv-decisions-chip.review strong { color: #416985; }
+.dv-decisions-chip-label { font-size: 10px; font-weight: 700; }
+/* Demo .section-minihead: 10px/750, letter-spaced, uppercase. */
+.dv-decisions-section-label, .dv-review-rounds-head strong { font-size: 10px; font-weight: 750; letter-spacing: .7px; color: #697d71; text-transform: uppercase; margin: 2px 0 0; }
+/* Demo .action-row: amber decision icon / blue review icon, 31px squares. */
+.dv-decision-icon { width: 31px; height: 31px; border-radius: 9px; background: #f3eddf; color: #86692c; display: grid; place-items: center; flex: none; font-size: 15px; }
+.dv-decision-icon.review { background: #e8eff6; color: #426d91; }
+/* Demo .signal-pill: 9px pill, green/amber/red variants. */
+.dv-project-signal { font-size: 9px; white-space: nowrap; border: 1px solid #dbe4d7; border-radius: 6px; background: #edf3e9; color: #56715a; padding: 3px 7px; }
+.dv-project-signal.attention { color: #a9493a; background: #f8e9e5; border-color: #eecdc6; }
+.dv-project-signal.watch { color: #9a681e; background: #fff1db; border-color: #e8d3ad; }
+/* Demo .project-chip-link: green, 9px/750. */
+.dv-project-link { font-size: 9px; font-weight: 750; color: #367b55; margin-top: auto; }
+/* Demo .row-stripe on attention rows: 3px, 30px, rounded. */
+.dv-attention-stripe { width: 3px; height: 30px; border-radius: 5px; align-self: center; background: #bbc8bc; }
+.dv-attention-stripe.overdue { background: #c56b59; }
+.dv-attention-stripe.waiting { background: #d0a455; }
+.dv-attention-stripe.review { background: #6a9ab8; }
+.dv-attention-stripe.default { background: #bbc8bc; }
+/* Demo .status-chip variants on attention rows. */
+.dv-attention-chip { background: #eef1ed; border: 1px solid #e1e5de; border-radius: 5px; color: #4d695b; padding: 2px 7px; font-size: 9.5px; font-weight: 750; }
+.dv-attention-chip.waiting { background: #fff0d8; color: #946319; border-color: #f0debd; }
+.dv-attention-chip.review { background: #eaf1fa; color: #3d648a; border-color: #dae5f3; }
+.dv-attention-due { font-weight: 700; font-size: 10px; color: #526a5b; white-space: nowrap; }
+.dv-attention-due.overdue { color: #a7483d; }
+/* Demo .list-foot: 10px 17px, 10px muted text. */
+.dv-attention-foot { padding: 10px 17px; }
+/* Demo .text-btn on queue actions: 11px/750 pine-green, underlined on hover. */
+.dv-attention-actions button, .dv-attention-actions a { background: transparent; border: 0; color: #37694e; font-weight: 750; font-size: 11px; padding: 7px 5px; white-space: nowrap; }
+.dv-attention-actions button:hover, .dv-attention-actions a:hover { text-decoration: underline; background: transparent; }
 
 /* Project status rows with meter */
 .dashboard-prow-list { display: grid; gap: 0; }

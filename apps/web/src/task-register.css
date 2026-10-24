@@ -1,0 +1,98 @@
+/* Standalone Tasks register only. My Work and embedded Project tasks retain
+   their own layouts and action presentation. */
+.task-register { container-type: inline-size; }
+.task-workspace.task-register .task-header { margin-bottom: 1rem; }
+.task-workspace.task-register .task-header p { max-width: 65ch; }
+.task-register-toolbar { display: flex; align-items: end; justify-content: space-between; gap: .75rem; margin-bottom: .75rem; }
+.task-register-toolbar > label { display: grid; gap: .3rem; font-size: .85rem; font-weight: 600; }
+.task-register-toolbar select { min-height: 44px; }
+.task-register-display { position: relative; }
+.task-register-display > summary, .task-register-manage > summary, .task-register-technical > summary { cursor: pointer; padding: .75rem; font-weight: 650; color: var(--task-accent); }
+.task-register-display > .task-toolbar { position: absolute; top: 100%; right: 0; z-index: 3; width: min(34rem, 85vw); padding: 1rem; border: 1px solid var(--task-line); border-radius: .6rem; background: var(--sense-surface, #fff); box-shadow: 0 8px 24px #182c291a; }
+.task-workspace.task-register .task-register-phases { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .75rem; }
+.task-workspace.task-register .task-register-phases button { min-height: 44px; padding: .5rem .8rem; }
+.task-workspace.task-register .task-register-phases button[aria-pressed=true] { background: var(--sense-surface-active, #e3eadf); border-color: var(--task-accent); font-weight: 700; }
+.task-workspace.task-register .task-list-filters { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; padding: .65rem; margin-bottom: .5rem; }
+.task-workspace.task-register .task-list-filters > .task-search-control { position: relative; flex: 1 1 16rem; margin: 0; }
+.task-workspace.task-register .task-search-control input { width: 100%; padding-left: 2rem; }
+.task-workspace.task-register .task-search-control .task-search-icon { position: absolute; left: .65rem; bottom: .85rem; }
+.task-workspace.task-register .task-secondary-filters { flex: 1 0 100%; order: 3; }
+.task-workspace.task-register .task-secondary-filters > summary { width: max-content; min-height: 44px; padding: .65rem; }
+.task-workspace.task-register .task-secondary-filter-grid { gap: .75rem; padding: .5rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); }
+.task-workspace.task-register .task-refinement-fields { grid-column: 1 / -1; }
+.task-workspace.task-register .task-filter-actions { flex: 0 1 auto; padding: 0; }
+.task-workspace.task-register .task-filter-actions button { min-height: 44px; }
+.task-workspace.task-register .task-register-filter-note { flex: 1 0 100%; order: 4; margin: 0; font-size: .85rem; }
+.task-workspace.task-register .task-list-paging { margin: .5rem 0; }
+.task-workspace.task-register .task-queue-header { display: none; }
+.task-workspace.task-register .task-list.task-queue-list { container: task-register-queue / inline-size; border: 1px solid var(--task-line); border-radius: .75rem; padding: .5rem; }
+.task-workspace.task-register .task-queue-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(8rem, .22fr); gap: .5rem; align-items: center; padding: .65rem!important; }
+/* The main button contains the title/facts. It must take up layout space;
+   an absolute row overlay collapses those cells underneath the People button. */
+.task-workspace.task-register .task-queue-row > .task-queue-open-main { position: static; inset: auto; display: grid; grid-template-columns: minmax(0, 2fr) repeat(2, minmax(5rem, .75fr)); align-items: start; gap: .6rem; height: auto; min-height: 44px; margin: 0; padding: .25rem; text-align: left; }
+.task-workspace.task-register .task-queue-row > .task-queue-owner { position: static; min-width: 0; pointer-events: auto; }
+.task-workspace.task-register .task-queue-row .task-queue-cell { min-width: 0; grid-column: auto; font-size: .875rem!important; }
+.task-workspace.task-register .task-queue-row .task-queue-primary { grid-column: 1 / -1; }
+.task-workspace.task-register .task-queue-value-label { display: block; font-size: .75rem!important; }
+.task-workspace.task-register .task-queue-primary > .task-queue-value-label { display: none; }
+.task-workspace.task-register .task-queue-row .task-queue-open { grid-column: 1 / -1; justify-content: start; padding-top: .15rem; }
+.task-workspace.task-register .task-people-copy strong { font-size: .8125rem; }
+.task-workspace.task-register .task-people-copy small { font-size: .75rem; }
+.task-workspace.task-register .task-people-trigger { overflow: hidden; }
+.task-workspace.task-register .task-register-next { margin: .75rem 0; padding: .85rem; border: 1px solid var(--task-line); border-left: 3px solid var(--task-accent); border-radius: .5rem; background: var(--sense-surface-active, #f1f5ef); }
+.task-workspace.task-register .task-register-next h4 { margin-top: 0; }
+.task-workspace.task-register .task-register-next > a { display: inline-flex; align-items: center; min-height: 44px; margin-right: .75rem; }
+.task-workspace.task-register .task-register-next label { display: grid; gap: .3rem; }
+.task-workspace.task-register .task-register-next .task-actions { margin-top: .5rem; }
+.task-workspace.task-register .task-register-action-help { font-size: .85rem; }
+.task-workspace.task-register .task-register-manage, .task-workspace.task-register .task-register-technical { margin: .6rem 0; border: 1px solid var(--task-line); border-radius: .5rem; }
+.task-workspace.task-register .task-register-manage > :not(summary) { margin: .5rem; }
+.task-workspace.task-register .task-register-technical > p { padding: 0 .75rem; }
+.task-register :is(button, summary, a, input, select):focus-visible { outline: 3px solid var(--task-accent); outline-offset: 2px; }
+@container task-register-queue (max-width: 780px) {
+  .task-workspace.task-register .task-queue-row { grid-template-columns: minmax(0, 1fr); }
+  .task-workspace.task-register .task-queue-row > .task-queue-owner { max-width: 22rem; }
+  .task-workspace.task-register .task-queue-row > .task-queue-open-main { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 1023px) {
+  .task-register.task-workspace-detail-active .task-register-toolbar,
+  .task-register.task-workspace-detail-active .task-register-phases { display: none; }
+}
+@media (max-width: 520px) {
+  .task-workspace.task-register .task-list-filters > .task-search-control { flex-basis: 100%; }
+  .task-workspace.task-register .task-register-toolbar { align-items: center; }
+  .task-workspace.task-register .task-register-phases { gap: .25rem; }
+  .task-workspace.task-register .task-register-phases button { font-size: .875rem; padding-inline: .55rem; }
+  .task-workspace.task-register .task-queue-row { padding: .6rem!important; }
+  .task-workspace.task-register .task-secondary-filter-grid { grid-template-columns: minmax(0, 1fr); }
+  .task-workspace.task-register .task-detail { overflow-wrap: anywhere; }
+}
+
+.task-workspace.task-register .task-queue-row .task-people-copy small { display: none; }
+.task-workspace.task-register .task-queue-row .task-people-copy strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 15rem; }
+
+/* Give selected work the first screen; Back restores the register controls. */
+.task-workspace.task-register.task-workspace-detail-active .task-register-toolbar,
+.task-workspace.task-register.task-workspace-detail-active .task-register-phases,
+.task-workspace.task-register.task-workspace-detail-active .task-list-filters,
+.task-workspace.task-register.task-workspace-detail-active .task-list-paging,
+.task-workspace.task-register.task-workspace-detail-active .task-header p:not(.task-eyebrow) { display: none; }
+.task-workspace.task-register .task-list-filters .task-search-control input { padding-inline-start: 2.25rem; }
+.task-workspace.task-register .task-list-paging[data-single-page=true] > div { display: none; }
+@media (max-width: 520px) {
+  .task-workspace.task-register .task-header { align-items: center; margin-bottom: .6rem; }
+  .task-workspace.task-register .task-header p { display: none; }
+  .task-workspace.task-register .task-header h1 { margin: .1rem 0; font-size: 1.5rem; }
+  .task-workspace.task-register .task-register-phases { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; padding-bottom: .3rem; }
+  .task-workspace.task-register .task-register-phases button { flex: 0 0 auto; }
+  .task-workspace.task-register .task-list-filters { margin-block: .4rem; }
+  .task-workspace.task-register .task-list-paging { margin-block: .4rem; }
+}
+
+@media (max-width: 520px) {
+  .task-workspace.task-register .task-register-toolbar { gap: .5rem; }
+  .task-workspace.task-register .task-register-toolbar > label { flex: 1 1 8rem; min-width: 0; max-width: 10rem; }
+  .task-workspace.task-register .task-register-toolbar select { width: 100%; }
+  .task-workspace.task-register .task-register-display { flex-shrink: 0; }
+  .task-workspace.task-register .task-register-display > summary { padding-inline: .25rem; font-size: .875rem; white-space: nowrap; }
+}

@@ -40,7 +40,7 @@ describe("ReviewWorkspace", () => {
     await screen.findByRole("heading", { name: "Review plan" });
     fireEvent.change(screen.getByLabelText("Exact drawing revision"), { target: { value: "revision-1" } });
     fireEvent.change(screen.getByLabelText("Submission reason"), { target: { value: "Ready for independent review" } });
-    fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit for internal review" }));
     await waitFor(() => expect(fetchMock.mock.calls.some(([url, init]) => String(url).endsWith("/tasks/task-1/submit") && init?.method === "POST")).toBe(true));
     const call = fetchMock.mock.calls.find(([url, init]) => String(url).endsWith("/tasks/task-1/submit") && init?.method === "POST");
     expect(call?.[1]?.headers).toMatchObject({ "X-CSRF-Token": "csrf-review" });
@@ -74,7 +74,7 @@ describe("ReviewWorkspace", () => {
     expect(snapshot).toHaveTextContent("Title at submissionOriginal submitted title");
     expect(snapshot).toHaveTextContent("Priority at submissionHIGH");
     expect(snapshot).toHaveTextContent("Committed date at submission2026-11-15");
-    expect(screen.getByRole("link", { name: "Download exact submitted revision R3" })).toHaveAttribute("href", "/api/v1/documents/files/revision-file-3/stream");
+    expect(screen.getByRole("link", { name: "Open exact submitted file R3" })).toHaveAttribute("href", "/api/v1/documents/files/revision-file-3/stream");
     const markupLinks = screen.getAllByRole("link", { name: "Download markup file" });
     expect(markupLinks).toHaveLength(2);
     expect(markupLinks.map((link) => link.getAttribute("href"))).toEqual(["/api/v1/documents/files/markup-file-one/stream", "/api/v1/documents/files/markup-file-two/stream"]);

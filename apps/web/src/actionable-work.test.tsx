@@ -38,7 +38,7 @@ describe("Shared-snapshot attention queue", () => {
     const { counts } = renderWork();
     expect(await screen.findByRole("alert")).toHaveTextContent("Attention sources are unavailable");
     expect(screen.queryByRole("button", { name: /task-1/ })).not.toBeInTheDocument();
-    expect(counts).toHaveBeenLastCalledWith(expect.objectContaining({ actionableTasks: { status: "unavailable" } }));
+    await waitFor(() => expect(counts).toHaveBeenLastCalledWith(expect.objectContaining({ actionableTasks: { status: "unavailable" } })));
   });
   it("derives overdue annotations from the response clock and organization timezone", async () => {
     const body = { ...page([{ ...task(), reason: "overdue", status: "IN_PROGRESS", priority: "HIGH" }]), readAt: "2026-10-13T23:50:00Z" };
@@ -90,7 +90,7 @@ describe("Shared-snapshot attention queue", () => {
     const result = renderWork({ filters: { phase: "active", status: "WAITING", q: "drawing" }, onClearTaskFilters: clear, onActionCounts: counts });
     await screen.findByText("No authorized actions match these filters.");
     expect(screen.getByLabelText("Attention work type")).toHaveValue("task"); expect(screen.getByLabelText("Attention work type")).toBeDisabled();
-    expect(counts).toHaveBeenLastCalledWith(expect.objectContaining({ assignedReviews: { status: "excluded" }, decisions: { status: "excluded" } }));
+    await waitFor(() => expect(counts).toHaveBeenLastCalledWith(expect.objectContaining({ assignedReviews: { status: "excluded" }, decisions: { status: "excluded" } })));
     expect(String(fetcher.mock.calls[0]?.[0])).toContain("q=drawing"); expect(String(fetcher.mock.calls[0]?.[0])).not.toContain("phase=active");
     fireEvent.click(screen.getByRole("button", { name: /Clear task-only filters/ })); expect(clear).toHaveBeenCalledOnce();
     result.rerender(<MemoryRouter><ActionableWork accountId="account-a" filters={{ phase: "active", q: "drawing" }} onActionCounts={counts} /></MemoryRouter>);
@@ -110,7 +110,7 @@ describe("Shared-snapshot attention queue", () => {
     await screen.findByText("No authorized actions match these filters.");
     expect(screen.getByLabelText("Attention work type")).toHaveValue("task"); expect(screen.getByLabelText("Attention work type")).toBeDisabled();
     expect(new URL(String(fetcher.mock.calls.at(-1)?.[0]), "http://test").searchParams.get(key)).toBe(value);
-    expect(counts).toHaveBeenLastCalledWith(expect.objectContaining({ assignedReviews: { status: "excluded" }, decisions: { status: "excluded" } }));
+    await waitFor(() => expect(counts).toHaveBeenLastCalledWith(expect.objectContaining({ assignedReviews: { status: "excluded" }, decisions: { status: "excluded" } })));
     fireEvent.click(screen.getByRole("button", { name: /Clear task-only filters/ })); expect(clear).toHaveBeenCalledOnce();
     result.rerender(<MemoryRouter><ActionableWork accountId="account-a" filters={{ phase: "active", q: "drawing" }} onActionCounts={counts} /></MemoryRouter>);
     await waitFor(() => expect(screen.getByLabelText("Attention work type")).toHaveValue("all"));
@@ -120,7 +120,7 @@ describe("Shared-snapshot attention queue", () => {
     const { counts } = renderWork(); await screen.findByRole("button", { name: /task-0/ }); fail = true;
     fireEvent.click(screen.getByRole("button", { name: "Refresh attention" })); await screen.findByText(/Refresh failed/);
     expect(screen.getByRole("button", { name: /task-0/ })).toBeInTheDocument(); expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
-    expect(counts).toHaveBeenLastCalledWith(expect.objectContaining({ actionableTasks: { status: "stale", total: 26 } }));
+    await waitFor(() => expect(counts).toHaveBeenLastCalledWith(expect.objectContaining({ actionableTasks: { status: "stale", total: 26 } })));
   });
   it.each([401, 403])("clears old protected rows on authorization loss (%s), rather than retaining them as stale", async status => {
     let fail = false; vi.stubGlobal("fetch", vi.fn(async () => response(fail ? {} : page([task()]), fail ? status : 200)));

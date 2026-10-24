@@ -24,5 +24,5 @@ export function ProjectsRoute({ readSession }: { readSession: () => Promise<Sess
   if (!session) return <main className="identity-content"><section className="identity-section"><h1>Sign in to view projects</h1><Link to="/">Return to sign in</Link></section></main>;
   if (session.account.kind === "OWNER" && session.ownerSetupRequired) return <main className="identity-content"><section className="identity-section"><h1>Complete Owner setup first</h1><Link to="/">Return to Owner setup</Link></section></main>;
   const initialProjectId = new URLSearchParams(window.location.search).get("projectId") ?? "";
-  return <WorkspaceLayout key={session.account.id}><main className="identity-content projects-route"><div className="workspace-account-heading"><span>Projects</span><span>{session.account.email}</span></div><ProjectWorkspace csrfToken={session.csrfToken} owner={session.account.kind === "OWNER"} listFirst initialProjectId={initialProjectId} /></main></WorkspaceLayout>;
+  return <WorkspaceLayout key={session.account.id}><main className="identity-content projects-route"><ProjectWorkspace csrfToken={session.csrfToken} owner={session.account.kind === "OWNER"} listFirst initialProjectId={initialProjectId} /></main></WorkspaceLayout>;
 }

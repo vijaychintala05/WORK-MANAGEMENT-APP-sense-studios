@@ -104,12 +104,14 @@ test("linked project task is submitted, reviewed from inbox, and assigned correc
     await page.goto(`/reviews?taskId=${task.id}`);
     const workspace = page.locator(".review-workspace");
     await expect(workspace.getByRole("heading", { name: taskTitle })).toBeVisible();
+    await workspace.getByLabel("Evidence type").selectOption("LINK");
+    await workspace.getByLabel("HTTPS review link").fill("https://files.sensestudios.com/e2e/review-work");
     await workspace.getByLabel("Submission reason").fill("Submit the linked design task for independent review");
-    await expect(workspace.getByRole("button", { name: "Submit for review" })).toBeEnabled();
+    await expect(workspace.getByRole("button", { name: "Submit for internal review" })).toBeEnabled();
     const submissionRequest = page.waitForResponse((response) => response.url().endsWith(`/api/v1/reviews/tasks/${task.id}/submit`) && response.request().method() === "POST");
-    await workspace.getByRole("button", { name: "Submit for review" }).click();
+    await workspace.getByRole("button", { name: "Submit for internal review" }).click();
     expect((await submissionRequest).status()).toBe(201);
-    await expect(workspace.getByText("Submission sent for internal review.")).toBeVisible();
+    await expect(workspace.getByText("Work submitted for internal review. Client delivery waits for approval.")).toBeVisible();
     await page.reload();
     await expect(workspace.getByRole("heading", { name: taskTitle })).toBeVisible();
     await expect(workspace.getByRole("heading", { name: "Round 1" })).toBeVisible();

@@ -1,3 +1,26 @@
+# Current V10 local staging reconciliation — COMPLETE
+
+## Canonical recovery and V10 local staging — COMPLETE, 2026-10-21
+
+The Owner-requested V10 Dashboard is implemented in the existing application and verified at http://localhost:59443/. The accepted candidate is 66cfc395cde321fe6ecbede61e20d078baa90da1; deployed matched release 58872f0396a1fbbb3a6d4809edd1ba1ae02ec2c5, build 58872f0396a1-1792601887224, source 9b06c9d39ec7e8cbd97d2e75cc14d45351f90be91e7d20dbb31e4a5d43884e86. Web/API identity and database readiness match. PR2 targets codex/sense-release; historical branches, archives, configurations, artifacts and retained data are preserved.
+
+The application source is unchanged from the fully checked3f6eebc source. The final candidate adds only the Node-before-pnpm CI setup and three browser test corrections (optional Site gallery, response-status diagnostics and Library readiness). Native unit/quality and six-context evidence are reused only across that explicit unchanged application boundary; the full57-browser hosted regression passed on the identical Git tree. A superseded native fixture served a stamped web build against development API identity and produced ambiguous status selectors; the corrected standard development preview was rebuilt only inside the disposable build export, leaving the sealed release unchanged. The native full diagnostic is preserved as53passed/4failed/0skipped; fresh identity plus four portal rechecks passed. It is not relabeled as a clean full native run. Pinned Node24.19.0/pnpm11.19.0 gates passed: typecheck/lint/build, API508, web637, all57 hosted desktop/mobile browsers, six bounded browser cases (including six V10 contexts at1440/1024/390/320) and two Project database cases. Exact-candidate hosted verification passed, including real PostgreSQL, container and backup/restore checks. Exact artifact cache upgrade/offline/draft/pending-command preservation and live canonical browser checks passed. No migration or retained fixture write occurred;119 remains the ledger and170 non-auth table hashes remain unchanged during Owner-confirmed authentication activity.
+
+V10 preserves the fixed five factual task summaries, account/device widget customization, final deduplicated attention queue, existing Time commands, authorized persisted performance evidence, reports/summaries/schedules, page finder/collapsed rail and existing task creation. Performance does not invent missing Team metrics or policy. Independent Codex reviewed the adapter snapshot; subsequent shell/drop/mobile/Time corrections were reviewed and verified by current Codex after the independent reviewer reached its usage limit. No Opus/Sonnet or unperformed final independent review is claimed.
+
+Completion is bounded to development/local staging. Historical NUL-JSON incident, actual reboot/before-login behavior, R-104/R-105 operational acceptance and production/NAS/offsite/key-custody/provider/legal gates remain unverified. Current full174-table equality and original session/credential byte equivalence are not claimed. See docs/operations/V10_COMPLETION_REPORT_2026-10-21.md and the recovery verification log for exact evidence and preserved failed attempts.
+
+
+## Historical reconciliation (superseded)
+
+<details><summary>Preserved initial audit and earlier candidate gaps</summary>
+
+## Current V10 follow-up — 2026-10-21
+
+The Owner expressly authorized completing V10 after recovery release886df63 was deployed. The earlier deferral below is historical. Candidatefa8ed46 implements widgets/customization, real timer/performance adapters and shell interactions; Exactfa8 artifact/cache and quality508/637 passed; final fixture-corrected30d9 browser/hosted/staging acceptance remains IN PROGRESS. See V10_COMPLETION_PLAN_2026-10-21.md and RECOVERY_ACCEPTANCE_REPORT_2026-10-21.md. Pins/global-composer alternatives outside the existing task creation entry and unspecified business policies remain excluded.
+
+## Historical initial reconciliation (superseded by current follow-up)
+
 # Recovery acceptance and implementation matrix — 21 October 2026
 
 ## Recovery follow-up
@@ -102,3 +125,5 @@ Read directly from `.env.cleanup-worktrees-20261014/9bd6.tar`, without extractin
   "modelsUsed": "independent current Codex subagent; no Opus/Sonnet claim"
 }
 ```
+
+</details>

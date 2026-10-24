@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-22",
+  "method": "ui-ux-pro-max; live cached browser; read-only source",
+  "baseUrl": "http://localhost:59443",
+  "browserMode": "Owner explicitly selected cached-screen review; update not applied",
+  "webAndApiManifestCommit": "58872f0396a1fbbb3a6d4809edd1ba1ae02ec2c5",
+  "buildId": "58872f0396a1-1792601887224",
+  "migrationCount": 119,
+  "cachedScript": "index-DTyERBzP.js",
+  "sourceHead": "60d9292eadb824bd78235e76ab35186244ecdf0c",
+  "measuredViewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "mobileViewportVerified": false,
+  "measurements": {
+    "desktopSidebarDisplay": "flex",
+    "cachedDesktopBottomNavDisplay": "flex",
+    "dashboardBreakdownFontPx": 9,
+    "dashboardSourceFontPx": 10,
+    "projectTaskLabelAfterTypeSelection": "Project (optional)",
+    "composerInputFontPx": 13.92
+  },
+  "sourceHashes": [
+    {
+      "path": "apps/web/src/task-composer-fields.tsx",
+      "sha256": "3c3a517f60967bf3e89fe123ae4d1901e43f490aa0e3d5ca8c59932d5d4e0ca7"
+    },
+    {
+      "path": "apps/web/src/task-create-dialog.tsx",
+      "sha256": "4ce36b561ebcaf71f91189cfe345da7fb139f2133712e3a199e0628e18f3560b"
+    },
+    {
+      "path": "apps/web/src/task.tsx",
+      "sha256": "9b6a61c2a9b05c2eae7d8175d183bb5e17dfa6dbb0624891778dabae221067b0"
+    },
+    {
+      "path": "apps/web/src/project.tsx",
+      "sha256": "365556497c3c6131fca250be95aa64da504d3d0257f83229d9d88d3ad66ce69b"
+    },
+    {
+      "path": "apps/web/src/project-template.tsx",
+      "sha256": "a7b901ed8aefa9c0c4eba193b569abded5a42063bbd3680fd74cb19c9ac269b2"
+    },
+    {
+      "path": "apps/web/src/app.tsx",
+      "sha256": "9d9bdbf7acece602fa82ca8d02a6d81cf250c0b924b2629d2b67f3969d7595d7"
+    },
+    {
+      "path": "apps/web/src/settings-homes.tsx",
+      "sha256": "4637cad81ff4687727c81712da6ee5529c0d92c1e9e2240db04ed6aa5ee66b3a"
+    },
+    {
+      "path": "apps/web/src/workspace-navigation.css",
+      "sha256": "959e798cf1073f81c311b8f52620991f25b5f4fe50da5ec38606bf85ce8b5ff9"
+    }
+  ],
+  "applicationWritesSubmitted": false,
+  "fullQualityGatesRun": false
+}

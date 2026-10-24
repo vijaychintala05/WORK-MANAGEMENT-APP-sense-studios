@@ -1,3 +1,4 @@
+import { assertClientEvidenceFile, submittedEvidence } from "./review-work-evidence.js";
 import { createHash, randomUUID } from "node:crypto";
 import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { DatabaseService } from "./database.service.js";
@@ -23,15 +24,17 @@ export class ClientPortalFilesService {
   async stream(active: ActiveClientPortalSession, itemId: string, download: boolean) {
     return this.database.prisma.$transaction(async (tx) => {
       const { item, project } = await this.scope.authorizeItem(tx, active, itemId, download ? "download" : "view");
-      if (!item.revisionId) throw new NotFoundException("This item has no file");
-      const revision = await tx.documentRevision.findFirst({ where: { id: item.revisionId, projectId: project.id, organizationId: project.organizationId } });
-      if (!revision) throw new NotFoundException("File not found");
       const snapshot = item.snapshot as Record<string, unknown>;
-      if (snapshot.revisionId !== revision.id || snapshot.blobId !== revision.blobId || snapshot.sha256 !== revision.sha256 || snapshot.fileId !== revision.fileId) throw new ConflictException("Exact item file evidence does not match");
-      const blob = await tx.fileBlobMetadata.findFirst({ where: { id: revision.blobId, organizationId: project.organizationId }, include: { document: true } });
-      if (!blob || blob.documentId !== revision.fileId || blob.document.projectId !== project.id || blob.sha256 !== revision.sha256 || !safeMime(blob.mimeType)) throw new ForbiddenException("Only exact PDF/image review files are available");
+      const evidence = submittedEvidence(snapshot);
+      if (evidence) await assertClientEvidenceFile(tx, project.organizationId, project.id, evidence);
+      const revision = item.revisionId ? await tx.documentRevision.findFirst({ where: { id: item.revisionId, projectId: project.id, organizationId: project.organizationId } }) : null;
+      const exact = revision ?? evidence;
+      if (!exact?.fileId || !exact.blobId || !exact.sha256) throw new NotFoundException("This item has no file");
+      if (snapshot.blobId !== exact.blobId || snapshot.sha256 !== exact.sha256 || snapshot.fileId !== exact.fileId || revision && snapshot.revisionId !== revision.id) throw new ConflictException("Exact item file evidence does not match");
+      const blob = await tx.fileBlobMetadata.findFirst({ where: { id: exact.blobId, organizationId: project.organizationId }, include: { document: true } });
+      if (!blob || blob.documentId !== exact.fileId || blob.document.projectId !== project.id || blob.sha256 !== exact.sha256 || blob.document.confidential || !safeMime(blob.mimeType)) throw new ForbiddenException("Only exact non-confidential PDF/image review files are available");
       if (download && blob.document.viewOnly) throw new ForbiddenException("This document permits viewing only");
-      const superseded = !revision.isCurrent || revision.state === RevisionState.SUPERSEDED;
+      const superseded = !!revision && (!revision.isCurrent || revision.state === RevisionState.SUPERSEDED);
       if (project.status !== ProjectStatus.CANCELLED && superseded) throw new ConflictException("This revision was superseded. Request the current review item");
       const storage = await this.storage();
       const opened = await storage.openBlob(blob.storageKey);

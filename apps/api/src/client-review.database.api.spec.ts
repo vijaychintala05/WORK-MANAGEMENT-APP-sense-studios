@@ -1,3 +1,4 @@
+import { ReviewRoutingService } from "./review-routing.service.js";
 import "reflect-metadata";
 import { jest } from "@jest/globals";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
@@ -218,6 +219,41 @@ databaseDescribe("S14 client review PostgreSQL acceptance", () => {
       expect((await prisma.task.findUniqueOrThrow({ where: { id: task.id } })).status).toBe("COMPLETED");
       await expect(clientReviews.decide(active, correctedItemId, { kind: ClientItemDecisionKind.APPROVED, expectedVersion: correctedReview.version, signatureName: "Primary Client", consent: true, comment: "Repeat", reason: "Reject repeated immutable item decision", ceremonyId: approveOptions.ceremonyId, response: { id: credential.credentialId } as never })).rejects.toThrow();
 
+
+      // Prospective generic files and links use the same real approval/signature persistence.
+      const routing = new ReviewRoutingService(database, clientReviews, scope);
+      for (const kind of ["LINK", "FILE"] as const) {
+        const workTask = await tasks.create(owner, { projectId: created.project.id, ownerEmployeeId: submitter.id, title: `Approve ${kind} work`, type: "PROJECT", priority: "MEDIUM", targetDate: "2026-12-31", reviewRequirement: "BOTH", reason: "Authorize exact work routing" });
+        await reviews.assignReviewer(managerActor, workTask.id, { employeeId: reviewer.id, expectedVersion: 1, reason: "Assign independent work reviewer" });
+        await tasks.transition(submitterActor, workTask.id, { toState: "IN_PROGRESS", expectedVersion: 2, reason: "Start work with evidence" });
+        const submitted = await reviews.submit(submitterActor, workTask.id, { expectedVersion: 3, ...(kind === "LINK" ? { reviewUrl: `https://files.sensestudios.com/approved/${workTask.id}?version=1` } : { fileId: r1File.id }), reason: "Submit exact work evidence" });
+        await reviews.start(reviewerActor, submitted.rounds[0]!.id, "Inspect exact submitted evidence");
+        await reviews.decision(reviewerActor, submitted.rounds[0]!.id, { kind: "APPROVED", reason: "Approve exact submitted evidence" });
+        await routing.runBatch();
+        const publishedWork = await prisma.clientReviewItem.findFirstOrThrow({ where: { taskId: workTask.id } });
+        expect(publishedWork.workSubmissionId).toBeTruthy();
+        const clientWork = (await clientReviews.portalList(active, created.project.id)).packages.flatMap(pack => pack.items).find(item => item.id === publishedWork.id);
+        expect(clientWork).toMatchObject({ workEvidence: { kind } });
+        if (kind === "FILE") {
+          const opened = await portalFiles.stream(active, publishedWork.id, false);
+          const content: Buffer[] = []; for await (const chunk of opened.stream) content.push(Buffer.from(chunk));
+          expect(Buffer.concat(content)).toEqual(r1Bytes);
+        }
+        await clientReviews.beginReview(active, publishedWork.id, { expectedVersion: 1, reason: "Start client work review" });
+        const binding = { expectedVersion: 2, signatureName: "Primary Client", consent: true as const, comment: `Approve ${kind} work` };
+        const step = await clientReviews.approvalOptions(active, publishedWork.id, binding);
+        await clientReviews.decide(active, publishedWork.id, { ...binding, kind: "APPROVED", ceremonyId: step.ceremonyId, response: { id: credential.credentialId } as never, reason: "Approve exact work item" });
+        expect((await reviews.confirmedDrawings(owner, created.project.id)).items.some(item => item.taskId === workTask.id)).toBe(false);
+        const finalBinding = { expectedVersion: 1, signatureName: "Primary Client", consent: true as const, comment: `Finally approve ${kind} work` };
+        const finalStep = await clientReviews.finalOptions(active, publishedWork.packageId, finalBinding);
+        await clientReviews.finalApprove(active, publishedWork.packageId, { ...finalBinding, ceremonyId: finalStep.ceremonyId, response: { id: credential.credentialId } as never, reason: "Primary Client final work approval" });
+        const confirmedWork = (await reviews.confirmedDrawings(owner, created.project.id)).items.filter(item => item.taskId === workTask.id);
+        expect(confirmedWork).toHaveLength(1);
+        expect(confirmedWork[0]).toMatchObject({ kind, ...(kind === "LINK" ? { url: `https://files.sensestudios.com/approved/${workTask.id}?version=1`, fileId: null } : { fileId: r1File.id, url: null }) });
+        await routing.retry(owner, workTask.id);
+        expect((await reviews.confirmedDrawings(owner, created.project.id)).items.filter(item => item.taskId === workTask.id)).toHaveLength(1);
+        await clientReviews.completeTask(managerActor, workTask.id, { expectedVersion: (await prisma.task.findUniqueOrThrow({ where: { id: workTask.id } })).version, reason: "Complete finally approved work" });
+      }
       const currentGrant = await prisma.clientPortalGrant.findUniqueOrThrow({ where: { id: primaryGrant.grant.id } });
       const currentProjectVersion = (await prisma.project.findUniqueOrThrow({ where: { id: created.project.id }, select: { version: true } })).version;
       await tasks.cancelProject(owner, created.project.id, { expectedVersion: currentProjectVersion, reason: "Cancel after issued client handover", clientAccessEndTimes: [{ grantId: currentGrant.id, expectedVersion: currentGrant.version, expiresAt: new Date(Date.now() + 86_400_000).toISOString() }] });

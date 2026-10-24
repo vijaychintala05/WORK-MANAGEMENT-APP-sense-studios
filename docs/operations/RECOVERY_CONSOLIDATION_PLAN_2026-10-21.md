@@ -1,6 +1,6 @@
 # Sense recovery and controlled staging — 21 October 2026
 
-Status: IN PROGRESS. Current Owner instruction authorizes non-destructive preservation, integration, verification and local staging. No production or actual-project acceptance is implied. The Owner explicitly approved current Codex architecture/security/final acceptance reviews in place of unavailable Opus/Sonnet for this recovery. Actual reviewers and check results must be recorded.
+Status: COMPLETE for development/local staging. Matched V10 release58872f0 is live; exact acceptance and remaining operational/production limits are recorded in V10_COMPLETION_REPORT_2026-10-21.md. Current Owner instruction authorizes non-destructive preservation, integration, verification and local staging. No production or actual-project acceptance is implied. The Owner explicitly approved current Codex architecture/security/final acceptance reviews in place of unavailable Opus/Sonnet for this recovery. Actual reviewers and check results must be recorded.
 
 ## Authority and requirements
 

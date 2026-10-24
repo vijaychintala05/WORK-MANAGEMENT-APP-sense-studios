@@ -1,5 +1,7 @@
 /* Shared authenticated workspace shell: final Owner demo, extended app-wide by Owner. */
 .app-shell:has(.workspace-layout--studio) {
+  --sense-sidebar-width: 232px;
+  --sense-page-gutter: clamp(16px, 3vw, 44px);
   --sense-ink: #26312b;
   --sense-ink-strong: #26312b;
   --sense-ink-muted: #66726b;
@@ -21,15 +23,14 @@
   min-height: 64px;
   flex-wrap: nowrap;
   gap: .75rem;
-  margin-left: 232px;
-  padding: .55rem 1.5rem;
+  margin-left: var(--sense-sidebar-width);
+  padding: 0 var(--sense-page-gutter);
   border-bottom-color: #e8e8e2;
   background: #fff;
 }
 
 .app-shell:has(.workspace-layout--studio) .brand {
-  gap: 0;
-  color: #26312b;
+  display: none;
 }
 
 .app-shell:has(.workspace-layout--studio) .brand-mark,
@@ -44,7 +45,8 @@
 }
 
 .app-shell:has(.workspace-layout--studio) .site-header-controls {
-  width: auto;
+  width: 100%;
+  min-width: 0;
   gap: .5rem;
 }
 
@@ -87,7 +89,7 @@
 .app-shell:has(.workspace-layout--studio) .workspace-layout--studio {
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
-  margin-left: 232px;
+  margin-left: var(--sense-sidebar-width);
   padding-bottom: 0;
   background: #f7f5f0;
 }
@@ -97,7 +99,7 @@
   z-index: 17;
   inset: 0 auto 0 0;
   display: flex;
-  width: 232px;
+  width: var(--sense-sidebar-width);
   height: 100vh;
   height: 100dvh;
   max-height: none;
@@ -235,15 +237,49 @@
 
 .workspace-layout--studio .workspace-dialog-heading h2 { font: 700 1.25rem/1.3 Inter, ui-sans-serif, system-ui, sans-serif; }
 
-.workspace-layout--studio .workspace-page .identity-content { padding: 24px clamp(16px, 3vw, 44px); }
+.app-shell .workspace-layout--studio .workspace-page > .identity-content {
+  width: 100%;
+  max-width: var(--sense-content-max, 1600px);
+  margin-inline: auto;
+  padding: 24px var(--sense-page-gutter);
+}
+
+/* The global header owns context and account details for every internal tab. */
+.app-shell:has(.workspace-layout--studio) .workspace-header {
+  width: 100%;
+  min-width: 0;
+  min-height: 64px;
+  padding: .5rem 0;
+  border: 0;
+  background: var(--sense-surface);
+  flex-wrap: nowrap;
+}
+.app-shell:has(.workspace-layout--studio) .workspace-header-left { flex: 1; overflow: hidden; }
+.app-shell:has(.workspace-layout--studio) .workspace-header-context { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-shell:has(.workspace-layout--studio) .workspace-header-actions { flex: none; gap: .5rem; }
+.app-shell:has(.workspace-layout--studio) .workspace-header :is(a, button):focus-visible { outline: 3px solid var(--sense-focus); outline-offset: 2px; }
+.app-shell:has(.workspace-layout--studio) .workspace-header-new-task { background: var(--sense-pine); color: #fff; }
+.app-shell:has(.workspace-layout--studio) .workspace-header-new-task:hover { background: var(--sense-pine-hover); }
+.app-shell:has(.workspace-layout--studio) .workspace-header-notifications { border-color: var(--sense-border); background: var(--sense-surface); color: var(--sense-pine); }
+.app-shell:has(.workspace-layout--studio) .workspace-header-account { display: grid; min-width: 44px; min-height: 44px; justify-content: center; text-decoration: none; border-radius: var(--sense-radius-control, 9px); }
+.app-shell:has(.workspace-layout--studio) .workspace-header-account-avatar { width: 2.25rem; }
+.app-shell:has(.workspace-layout--studio) .workspace-header-account:hover { background: var(--sense-surface-active); }
+.app-shell:has(.workspace-layout--studio) .site-footer { margin-left: var(--sense-sidebar-width); }
+
+@media (min-width: 768px) {
+  .app-shell:has(.workspace-sidebar.is-collapsed) { --sense-sidebar-width: 72px; }
+}
 
 /* The final desktop demo uses an icon rail on tablet. Labels remain available
    to assistive technology and native tooltips; the page filter expands on focus. */
 @media (min-width: 768px) and (max-width: 1100px) {
-  .app-shell:has(.workspace-layout--studio) :is(.site-header, .workspace-layout--studio) { margin-left: 65px; }
-  .app-shell:has(.workspace-layout--studio) .workspace-sidebar { width: 65px; padding: 20px 9px; }
+  .app-shell:has(.workspace-layout--studio) { --sense-sidebar-width: 72px; }
+  .app-shell:has(.workspace-layout--studio) .workspace-sidebar { padding: 20px 9px; }
+  .app-shell:has(.workspace-layout--studio) .workspace-sidebar-brand-row { flex-direction: column; }
   .app-shell:has(.workspace-layout--studio) .workspace-shell-brand { justify-content: center; padding: 0; }
-  .app-shell:has(.workspace-layout--studio) :is(.workspace-shell-brand > span:last-child, .workspace-sidebar-title, .workspace-nav-filter-label, .workspace-nav a > span) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .app-shell:has(.workspace-layout--studio) :is(.workspace-shell-brand > span:not(.workspace-shell-brand-mark), .workspace-sidebar-title, .workspace-nav-filter-label, .workspace-nav a > span, .workspace-sidebar-settings > span) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .app-shell:has(.workspace-layout--studio) .workspace-header-account { grid-template-columns: 2.25rem; }
+  .app-shell:has(.workspace-layout--studio) :is(.workspace-header-account-email, .workspace-header-account-kind) { display: none; }
   .app-shell:has(.workspace-layout--studio) .workspace-nav a { justify-content: center; min-height: 44px; padding: 8px; }
   .app-shell:has(.workspace-layout--studio) .workspace-nav-disclosure { min-height: 44px; padding: 3px 0; gap: 2px; font-size: 8px; letter-spacing: 0; }
   .app-shell:has(.workspace-layout--studio) .workspace-nav-current-marker { display: none; }
@@ -257,13 +293,14 @@
 }
 
 @media (max-width: 767px) {
-  .workspace-layout--studio .workspace-page .identity-content { padding: 16px 12px 24px; }
+  .app-shell:has(.workspace-layout--studio) { --sense-sidebar-width: 0px; --sense-page-gutter: 12px; }
+  .app-shell .workspace-layout--studio .workspace-page > .identity-content { padding: 16px var(--sense-page-gutter) 24px; }
   .app-shell:has(.workspace-layout--studio) .workspace-sidebar { display: none; }
   .app-shell:has(.workspace-layout--studio) .site-header {
     min-height: 60px;
     gap: .4rem;
     margin-left: 0;
-    padding: .45rem .75rem;
+    padding: 0 var(--sense-page-gutter);
   }
 
   .app-shell:has(.workspace-layout--studio) .brand strong {
@@ -274,6 +311,15 @@
   .app-shell:has(.workspace-layout--studio) .site-header-controls {
     gap: .3rem;
   }
+
+  .app-shell:has(.workspace-layout--studio) .workspace-header { position: static; min-height: 60px; flex-wrap: wrap; gap: 0; }
+  .app-shell:has(.workspace-layout--studio) .workspace-header-left { flex-basis: 100%; padding: .25rem 0; font-size: .78rem; }
+  .app-shell:has(.workspace-layout--studio) .workspace-header-actions { width: 100%; justify-content: space-between; gap: .25rem; }
+  .app-shell:has(.workspace-layout--studio) .workspace-header-new-task { position: static; min-height: 44px; box-shadow: none; }
+  .app-shell:has(.workspace-layout--studio) .workspace-header-new-task { width: 44px; padding: .5rem; }
+  .app-shell:has(.workspace-layout--studio) .workspace-header-new-task > span { display: none; }
+  .app-shell:has(.workspace-layout--studio) .workspace-header-account { grid-template-columns: 2.25rem; }
+  .app-shell:has(.workspace-layout--studio) :is(.workspace-header-account-email, .workspace-header-account-kind) { display: none; }
 
   .app-shell:has(.workspace-layout--studio) .site-header-notifications,
   .app-shell:has(.workspace-layout--studio) .site-header-logout {

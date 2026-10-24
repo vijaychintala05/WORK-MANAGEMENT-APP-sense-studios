@@ -20,17 +20,24 @@ import { ProjectTemplateService } from "./project-template.service.js";
 import { TaskService } from "./task.service.js";
 import { ReviewService } from "./review.service.js";
 import { DocumentService } from "./document.service.js";
-import { AccountKind, PrismaClient } from "./generated/prisma/client.js";
+import { AccountKind, PrismaClient, type Prisma } from "./generated/prisma/client.js";
 import { AuthorizationService } from "./authorization.service.js";
 import { ApprovalService } from "./approval.service.js";
 import { loadAgent1BrowserTarget, verifyAgent1BrowserDatabase } from "./v1-agent1-browser-target.js";
 import { loadRecoveryTestTarget } from "./recovery-test-target.js";
+import { reviewRoutingTestTarget, verifyReviewRoutingTestDatabase } from "./review-routing-test-target.js";
 
 // Operator-only: standard unit/integration/e2e discovery does not match this filename.
 // Real session fixtures exercise ordinary guards; passkey/onboarding acceptance is separate.
 const root = resolve(process.cwd(), "../..");
 const recoveryBrowser = process.env.SENSE_RECOVERY_TEST_MANIFEST ? loadRecoveryTestTarget(process.env, root, "RECOVERY_BROWSER_DATABASE_URL") : undefined;
-const base = recoveryBrowser ? resolve(dirname(process.env.SENSE_RECOVERY_TEST_MANIFEST!), "agent1-browser") : resolve(root, ".artifacts/v1/20261016-agent1-browser");
+const reviewBrowser = process.env.SENSE_REVIEW_ROUTING_TEST_RUN ? reviewRoutingTestTarget(root, "S27_PARITY_DATABASE_URL") : undefined;
+const base = reviewBrowser ? resolve(reviewBrowser.state.base, "management-browser") : recoveryBrowser ? resolve(dirname(process.env.SENSE_RECOVERY_TEST_MANIFEST!), "agent1-browser") : resolve(root, ".artifacts/v1/20261016-agent1-browser");
+function browserTarget() { return reviewBrowser ? { url: reviewBrowser.url, manifest: { storage: resolve(base, "files") } } : loadAgent1BrowserTarget(process.env, root); }
+async function verifyBrowserDatabase(client: Prisma.TransactionClient): Promise<void> {
+  if (reviewBrowser) await verifyReviewRoutingTestDatabase(client, reviewBrowser);
+  else await verifyAgent1BrowserDatabase(client, loadAgent1BrowserTarget(process.env, root).manifest);
+}
 const apiPort = recoveryBrowser?.target.apiPort ?? 59752, webPort = recoveryBrowser?.target.webPort ?? 59753;
 const webOrigin = `http://127.0.0.1:${webPort}`;
 const hash = (value: string | Buffer): string => createHash("sha256").update(value).digest("hex");
@@ -47,11 +54,11 @@ describe("Agent1 source119 real session/application/browser acceptance", () => {
   const serverErrors: Array<{ path: string; name?: string; code?: string; detail: string }> = [];
   let directoryRead: { projects: number; returned: number; queries: number; elapsedMs: number } | undefined;
   beforeAll(async () => {
-    const target = loadAgent1BrowserTarget(process.env, root); // Must fail before any connection/startup.
+    const target = browserTarget(); // Must fail before any connection/startup.
     const config: RuntimeConfig = { nodeEnv: "test", databaseUrl: target.url, port: apiPort, webOrigin,
       nasRoot: target.manifest.storage, ownerBootstrapEmail: undefined, ownerBootstrapSecret: undefined };
     guardDatabase = new DatabaseService(config);
-    await verifyAgent1BrowserDatabase(guardDatabase.prisma, target.manifest);
+    await verifyBrowserDatabase(guardDatabase.prisma);
     for (const port of [apiPort, webPort]) await new Promise<void>((done, reject) => {
       const server = createServer(); server.once("error", reject); server.listen(port, "127.0.0.1", () => server.close(error => error ? reject(error) : done()));
     });
@@ -70,7 +77,7 @@ describe("Agent1 source119 real session/application/browser acceptance", () => {
     app.useGlobalInterceptors(observer); // Observes errors; preserves ordinary exception handling.
     app.enableCors({ origin: webOrigin, credentials: true }); app.use(express.json({ limit: "1mb" })); app.setGlobalPrefix("api/v1");
     await app.listen(apiPort, "127.0.0.1"); database = app.get(DatabaseService);
-    await verifyAgent1BrowserDatabase(database.prisma, target.manifest);
+    await verifyBrowserDatabase(database.prisma);
     const webLog = createWriteStream(resolve(base, "web.log"), { flags: "a" });
     web = spawn(process.execPath, [resolve(root, "apps/web/node_modules/vite/bin/vite.js"), "--host", "127.0.0.1", "--port", String(webPort), "--strictPort"], {
       cwd: resolve(root, "apps/web"), env: { ...process.env, API_PROXY_TARGET: `http://127.0.0.1:${apiPort}` }, shell: false, windowsHide: true, stdio: ["ignore", "pipe", "pipe"]
@@ -151,7 +158,7 @@ describe("Agent1 source119 real session/application/browser acceptance", () => {
     let reviewCurrent = await database.prisma.task.findUniqueOrThrow({ where: { id: reviewTask.id } });
     await tasks.transition(workerActor, reviewTask.id, { toState: "IN_PROGRESS", expectedVersion: reviewCurrent.version, reason: "Begin fixture design work" });
     reviewCurrent = await database.prisma.task.findUniqueOrThrow({ where: { id: reviewTask.id } });
-    await reviews.submit(workerActor, reviewTask.id, { expectedVersion: reviewCurrent.version, reason: "Submit fixture package for internal review" });
+    await reviews.submit(workerActor, reviewTask.id, { expectedVersion: reviewCurrent.version, reviewUrl: `https://files.sensestudios.com/acceptance/${reviewTask.id}`, reason: "Submit exact fixture link evidence for internal review" });
     const round = await database.prisma.reviewRound.findFirstOrThrow({ where: { taskId: reviewTask.id } });
     const documents = app!.get(DocumentService);
     const folder = await documents.createFolder(actor, project.id, { name: `Evidence ${width}`, confidential: false, reason: "Own isolated browser file fixture" });
@@ -177,6 +184,21 @@ describe("Agent1 source119 real session/application/browser acceptance", () => {
   }
   async function capture(page: Page, viewport: { width: number; height: number }, state: string): Promise<void> {
     const noOverflow = await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
+    // Shared shell must select one navigation mode on every authenticated page.
+    if (await page.locator(".workspace-mobile-nav").count()) {
+      expect(await page.locator(".workspace-mobile-nav").isVisible()).toBe(viewport.width < 768);
+      expect(await page.locator(".workspace-sidebar").isVisible()).toBe(viewport.width >= 768);
+    }
+    if (state.startsWith("v10-")) {
+      const queueContentsFit = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>(".dv-attention-queue .dv-attention-row > *, .dv-attention-queue .dv-attention-foot > *, .dv-attention-actions a, .dv-attention-actions button")]
+        .every(element => {
+          const card = element.closest(".dv-attention-queue");
+          if (!card) return false;
+          const bounds = element.getBoundingClientRect(), parent = card.getBoundingClientRect();
+          return bounds.left >= parent.left - 1 && bounds.right <= parent.right + 1;
+        }));
+      expect(queueContentsFit).toBe(true);
+    }
     const targets = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('[data-task-creation-recovery], .task-form button[type="submit"], .project-section-nav button, .project-resource-summary :is(a, button), .project-section-links a, .my-work-review-inbox-link, .my-work-decisions-link, .actionable-work__header button, .actionable-work__controls :is(button, select), .actionable-work > nav a, .actionable-work__pager button, .actionable-work__row > :is(a, button)')]
       .filter(element => element.getBoundingClientRect().width > 0 && element.getBoundingClientRect().height > 0)
       .map(element => ({ height: element.getBoundingClientRect().height, minimum: element.closest(".project-section-nav") && innerWidth > 760 ? 40 : 44 })));
@@ -298,6 +320,41 @@ describe("Agent1 source119 real session/application/browser acceptance", () => {
     expect(await database.prisma.reviewRound.count({ where: { taskId: task.id } })).toBe(2);
     await capture(ownerPage, viewport, "archived-project");
   }
+  it("accepts My Work management scopes for Owner and authorized Leader with employee isolation", async () => {
+    const f = await fixture(1023);
+    const task = await app!.get(TaskService).create(f.workerActor, { title: `Scoped personal work ${randomUUID()}`, type: "NON_PROJECT", priority: "HIGH", targetDate: date, reason: "My Work real management scope acceptance" });
+    const account = await database.prisma.account.create({ data: { kind: "STAFF", state: "ACTIVE", normalizedEmail: `management-leader-${randomUUID()}@example.test` } });
+    const employee = await database.prisma.employee.create({ data: { accountId: account.id, organizationId: f.organization.id, homeBranchId: f.branch.id, homeTeamId: f.worker.employee.homeTeamId, hiredAt: new Date("2026-01-01") } });
+    await database.prisma.employee.update({ where: { id: f.worker.employee.id }, data: { reportsToId: employee.id } });
+    await database.prisma.employeePermissionOverride.create({ data: { organizationId: f.organization.id, employeeId: employee.id, permissionKey: "task.assign", effect: "ALLOW", scopeKind: "TEAM", branchId: f.branch.id, teamId: employee.homeTeamId, reason: "Explicit current reporting-tree management grant" } });
+    const secret = randomBytes(32).toString("base64url"), csrf = createHmac("sha256", secret).update("csrf").digest("base64url");
+    await database.prisma.session.create({ data: { accountId: account.id, tokenHash: hash(secret), csrfTokenHash: hash(csrf), expiresAt: new Date(Date.now() + 3600000) } });
+    for (const identity of [{ key: "owner", secret: f.ownerSession.secret }, { key: "leader", secret }, { key: "employee", secret: f.worker.secret }]) {
+      const session = await context(identity.secret, viewports[0]!); const page = await session.newPage();
+      try {
+        await page.goto("/my-work?scope=personal&phase=active");
+        if (identity.key !== "employee") {
+          await page.getByRole("button", { name: "All teams", exact: true }).click();
+          await page.getByRole("combobox", { name: "Work team", exact: true }).selectOption(employee.homeTeamId);
+          await page.getByRole("combobox", { name: "Work employee", exact: true }).selectOption(f.worker.employee.id);
+          await expectPage(page.locator(".my-work-demo-row").filter({ hasText: task.title })).toBeVisible();
+          await expectPage(page.locator(".my-work-group-head").filter({ hasText: "Today" })).toHaveCount(0);
+          expect(new URL(page.url()).searchParams.get("scope")).toBe("all");
+          expect(new URL(page.url()).searchParams.get("ownerEmployeeId")).toBe(f.worker.employee.id);
+        } else {
+          await expectPage(page.locator(".my-work-demo-row").filter({ hasText: task.title })).toBeVisible();
+          await expectPage(page.getByRole("button", { name: "All teams", exact: true })).toHaveCount(0);
+        }
+        for (const viewport of [...viewports, { width: 783, height: 884 }]) { await page.setViewportSize(viewport); await capture(page, viewport, `management-${identity.key}-drilldown`); }
+        if (identity.key !== "employee") {
+          await page.getByRole("button", { name: "My Work", exact: true }).click();
+          await expectPage(page.getByRole("combobox", { name: "Work team", exact: true })).toHaveCount(0);
+          expect(new URL(page.url()).searchParams.has("ownerEmployeeId")).toBe(false);
+        }
+      } finally { await session.close(); }
+    }
+    expect(serverErrors).toEqual([]); expect(diagnostics.filter(row => row.event === "pageerror")).toEqual([]);
+  }, 120000);
   it("accepts V10 Dashboard for six real account contexts at four widths with retained customization and timer persistence", async () => {
     const f = await fixture(1010);
     const timerTask = await app!.get(TaskService).create(f.workerActor, { title: `V10 internal time task ${randomUUID()}`, type: "NON_PROJECT", priority: "LOW", targetDate: date, reason: "Verify existing non-project task time contract" });
@@ -310,6 +367,7 @@ describe("Agent1 source119 real session/application/browser acceptance", () => {
     };
     const leader = await createPerson("v10-leader"), site = await createPerson("v10-site");
     await database.prisma.employee.update({ where: { id: f.worker.employee.id }, data: { reportsToId: leader.employee.id } });
+    await database.prisma.employeePermissionOverride.create({ data: { organizationId: f.organization.id, employeeId: leader.employee.id, permissionKey: "task.assign", effect: "ALLOW", scopeKind: "TEAM", branchId: f.branch.id, teamId: leader.employee.homeTeamId, reason: "Explicit reporting-tree management for My Work scope acceptance" } });
     await database.prisma.employeePermissionOverride.create({ data: { organizationId: f.organization.id, employeeId: leader.employee.id, permissionKey: "performance.manage", effect: "ALLOW", scopeKind: "TEAM", branchId: f.branch.id, teamId: leader.employee.homeTeamId, reason: "Explicit scoped V10 Team Leader fixture" } });
     const otherBranch = await database.prisma.branch.create({ data: { organizationId: f.organization.id, name: `V10 other ${randomUUID()}` } });
     const otherTeam = await database.prisma.team.create({ data: { organizationId: f.organization.id, branchId: otherBranch.id, name: "Other team" } });
@@ -328,6 +386,22 @@ describe("Agent1 source119 real session/application/browser acceptance", () => {
       const scoreReads: string[] = [];
       page.on("request", request => { if (/\/performance\/employees\//.test(request.url())) scoreReads.push(request.url()); });
       try {
+        if (identity.key === "owner" || identity.key === "leader") {
+          await page.goto("/my-work?scope=personal&phase=active");
+          await page.getByRole("button", { name: "All teams", exact: true }).click();
+          await expectPage(page.getByRole("combobox", { name: "Work team", exact: true })).toBeVisible();
+          await page.getByRole("combobox", { name: "Work team", exact: true }).selectOption(f.worker.employee.homeTeamId);
+          await page.getByRole("combobox", { name: "Work employee", exact: true }).selectOption(f.worker.employee.id);
+          await expectPage(page.locator(".my-work-queue-heading")).toContainText(identity.key === "owner" ? "Organization queue" : "Authorized team queue");
+          await expectPage(page.locator(".my-work-demo-row").first()).toBeVisible();
+          for (const viewport of [...viewports, { width: 783, height: 884 }]) {
+            await page.setViewportSize(viewport);
+            await capture(page, viewport, `management-${identity.key}-drilldown`);
+          }
+          await page.getByRole("button", { name: "My Work", exact: true }).click();
+          await expectPage(page.getByRole("combobox", { name: "Work team", exact: true })).toHaveCount(0);
+        }
+        await page.setViewportSize(viewports[0]!);
         await page.goto("/dashboard");
         await expectPage(page.locator(".dv-summary-card")).toHaveCount(5);
         await expectPage(page.locator(".dv-widget").filter({ has: page.getByRole("heading", { name: "Time tracking", exact: true }) })).toBeVisible();
@@ -423,6 +497,15 @@ describe("Agent1 source119 real session/application/browser acceptance", () => {
       await page.goto("/my-work"); const workspace = page.locator(".task-workspace").first();
       await workspace.getByRole("button", { name: "Create task", exact: true }).first().click();
       let form = page.getByRole("form", { name: "Create task", exact: true }); const title = `Personal browser ${viewport.width} ${randomUUID()}`;
+      await expectPage(workspace.getByRole("heading", { name: "My work", level: 1, exact: true })).toBeVisible();
+      await expectPage(page.getByRole("link", { name: "Skip to main content", exact: true })).toHaveCount(1);
+      await page.locator("dialog.task-create-dialog[open]").getByRole("button", { name: "Create task", exact: true }).click();
+      await expectPage(form.locator(".task-error-summary")).toBeFocused();
+      await expectPage(form.getByLabel("Task name", { exact: true })).toHaveAttribute("aria-invalid", "true");
+      await form.locator(".task-error-summary").getByRole("link", { name: "Task name must be between 2 and 160 characters.", exact: true }).click();
+      await expectPage(form.getByLabel("Task name", { exact: true })).toBeFocused();
+      expect(await database.prisma.task.count({ where: { title } })).toBe(0);
+      await capture(page, viewport, "ux22-task-errors");
       await fillTask(form, title); await form.getByRole("combobox", { name: "Priority", exact: true }).selectOption("CRITICAL");
       const optional = form.getByText("Optional planning", { exact: true }); if (await optional.count()) await optional.click();
       const needle = `description-${randomUUID()}`; await form.getByLabel(/Description/).fill(needle);
@@ -528,6 +611,7 @@ describe("Agent1 source119 real session/application/browser acceptance", () => {
 
       const ownerPage = await ownerContext.newPage(); await ownerPage.goto("/projects?q=PreviouslyExisting");
       await ownerPage.getByLabel("Project branch", { exact: true }).selectOption(f.branch.id);
+      await ownerPage.getByText("Project template (optional)", { exact: true }).click();
       await ownerPage.getByLabel("Project template", { exact: true }).selectOption(f.templateVersionId);
       const projectForm = ownerPage.getByRole("form", { name: "Create project", exact: true }); const projectTitle = `Confirmed draft ${randomUUID()}`;
       await projectForm.getByLabel("Project title", { exact: true }).fill(projectTitle);
@@ -582,11 +666,11 @@ describe("Agent1 source119 real session/application/browser acceptance", () => {
   }, 180000);
 
   it("bounds the real Project directory query independently of accumulated fixture rows", async () => {
-    const target = loadAgent1BrowserTarget(process.env, root);
+    const target = browserTarget();
     const measured = new PrismaClient({ adapter: new PrismaPg({ connectionString: target.url, options: "-c timezone=UTC" }), log: [{ emit: "event", level: "query" }] });
     let queries = 0; measured.$on("query", () => { queries++; });
     try {
-      await verifyAgent1BrowserDatabase(measured, target.manifest);
+      await verifyBrowserDatabase(measured);
       const owner = await measured.account.findFirstOrThrow({ where: { kind: "OWNER", state: "ACTIVE" } });
       const db = { prisma: measured } as unknown as DatabaseService;
       const actor = await new ProjectService(db).actor(owner.id), projects = await measured.project.count({ where: { organizationId: actor.organizationId } });

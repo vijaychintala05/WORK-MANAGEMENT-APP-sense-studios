@@ -100,7 +100,7 @@ test("Owner configures test-only policies, publishes source-backed snapshots and
   const taskId = createdTask.id;
   const assignedReviewer = await apiPost<{ task: { version: number } }>(`/api/v1/reviews/tasks/${taskId}/reviewer`, ownerSecret, ownerCsrf, { employeeId: reviewerId, expectedVersion: createdTask.version, reason: "Assign independent fictional S23 reviewer" });
   const startedTask = await apiPost<{ id: string; version: number }>(`/api/v1/tasks/${taskId}/state`, ownerSecret, ownerCsrf, { toState: "IN_PROGRESS", expectedVersion: assignedReviewer.task.version, reason: "Start fictional reviewed work through the real task service" });
-  const submitted = await apiPost<{ task: { version: number }; rounds: Array<{ id: string }> }>(`/api/v1/reviews/tasks/${taskId}/submit`, employeeSecret, employeeCsrf, { expectedVersion: startedTask.version, reason: "Submit fictional work for independent review" });
+  const submitted = await apiPost<{ task: { version: number }; rounds: Array<{ id: string }> }>(`/api/v1/reviews/tasks/${taskId}/submit`, employeeSecret, employeeCsrf, { reviewUrl: "https://files.sensestudios.com/e2e/performance-work", expectedVersion: startedTask.version, reason: "Submit fictional work for independent review" });
   const roundId = submitted.rounds[0]!.id;
   await apiPost(`/api/v1/reviews/rounds/${roundId}/start`, reviewerSecret, reviewerCsrf, { reason: "Start the independent fictional review" });
   const decided = await apiPost<{ task: { version: number } }>(`/api/v1/reviews/rounds/${roundId}/decision`, reviewerSecret, reviewerCsrf, { kind: "APPROVED", reason: "Approve fictional first-pass work" });

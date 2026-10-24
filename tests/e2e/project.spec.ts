@@ -37,7 +37,7 @@ test("assigned staff sees only its project and a cancellation request persists a
     await context.addCookies([{ name: "sense_sid", value: session, url: baseURL!, httpOnly: true, sameSite: "Strict" }]);
     await page.goto("/workspace");
     const workspace = page.locator(".project-workspace");
-    await expect(workspace.getByRole("heading", { name: "Projects", exact: true, level: 2 })).toBeVisible();
+    await expect(workspace.getByRole("heading", { name: "Projects", exact: true, level: 1 })).toBeVisible();
     expect(await workspace.getByLabel("Project branch").locator("option").allTextContents()).not.toContain(`Project hidden ${otherBranchId}`);
     const inaccessibleBranch = await page.request.get(`/api/v1/projects?branchId=${otherBranchId}`);
     expect(inaccessibleBranch.ok()).toBe(true);

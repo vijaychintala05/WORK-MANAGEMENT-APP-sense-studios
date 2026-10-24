@@ -325,3 +325,5 @@
 .task-composer-lock { display: contents; }
 .task-workspace .task-create-recovery button,
 .task-workspace.task-detail-drawer .task-detail .task-create-recovery button { min-height: 44px; background: var(--task-accent, #29463d); color: #fff; border: 1px solid var(--task-accent, #29463d); }
+
+.task-review-requirements{display:grid;gap:.5rem;border:1px solid var(--task-line);border-radius:10px;padding:.75rem;min-width:0}.task-review-requirements legend{font-weight:650;padding:0 .25rem}.task-review-requirements label{display:flex!important;align-items:center;gap:.5rem;min-height:44px}.task-review-requirements input[type=checkbox]{width:18px!important;height:18px;flex:0 0 18px}.task-review-requirements small{line-height:1.5;color:var(--task-muted)}

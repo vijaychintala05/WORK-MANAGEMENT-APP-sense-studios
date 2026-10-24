@@ -1,3 +1,4 @@
+import { approveFixtureWork } from "./review-work-fixture.js";
 import { expect, test } from "@playwright/test";
 import { isS27DisposableTestTarget, matchesS27DisposableServer } from "../../apps/api/src/s27-disposable-test-target.js";
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
@@ -91,6 +92,8 @@ const disposableS27Database = Boolean(process.env.DATABASE_URL && isS27Disposabl
     const task = await command("/api/v1/tasks", { projectId: project.project.id, ownerEmployeeId: employeeId, title: taskTitle, type: "PROJECT", priority: "MEDIUM", targetDate: "2026-12-31", reviewRequirement: "CLIENT", reason: "Create client review task" }) as { id: string; version: number };
     await command(`/api/v1/tasks/${task.id}/state`, { toState: "IN_PROGRESS", expectedVersion: task.version, reason: "Start client review task" });
 
+    await approveFixtureWork({ page, db, origin: baseURL!, ownerHeaders, projectId: project.project.id, taskId: task.id, workerAccountId: staffAccountId, workerEmployeeId: employeeId, manualPublication: true });
+
     await context.addCookies([{ name: "sense_sid", value: ownerSecret, url: baseURL!, httpOnly: true, sameSite: "Strict" }]);
     await page.goto("/client-reviews");
     const workspace = page.locator(".client-review-workspace");
@@ -121,6 +124,7 @@ const disposableS27Database = Boolean(process.env.DATABASE_URL && isS27Disposabl
 
     await workspace.getByLabel("Package title").fill("Initial client package");
     await workspace.getByLabel("Task", { exact: true }).selectOption(task.id);
+    await workspace.getByLabel("Approved evidence").selectOption("approved-work");
     await workspace.getByLabel("Reason", { exact: true }).last().fill("Publish the internally approved client task");
     const packageResponse = page.waitForResponse((response) => response.url().endsWith(`/api/v1/client-reviews/projects/${project.project.id}/packages`) && response.request().method() === "POST");
     await workspace.getByRole("button", { name: "Send for client review" }).click();

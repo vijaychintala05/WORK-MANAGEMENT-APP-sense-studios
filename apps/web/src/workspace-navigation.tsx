@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { NavLink, Link, useLocation, useNavigate } from "react-router-dom";
 import "./workspace-navigation.css";
-import "./my-work-shell.css";
 
 const destinations = [
   { to: "/settings", label: "Account & settings" },
@@ -41,6 +40,28 @@ type Destination = (typeof destinations)[number];
 type DestinationGroup = (typeof destinationGroups)[number];
 type GroupLabel = DestinationGroup["label"];
 type OpenGroups = Record<GroupLabel, boolean>;
+
+/** Shared page context for internal routes, including secondary navigation homes. */
+export function workspaceContextLabel(pathname: string): string | undefined {
+  const secondaryHomes: Record<string, string> = {
+    "/": "Workspace",
+    "/workspace": "Workspace",
+    "/settings": "Settings",
+    "/reports": "Reports",
+    "/saved-reports": "Saved reports",
+    "/project-health": "Project health",
+    "/learning/skills": "Skills",
+    "/learning/training": "Training",
+    "/learning/library": "Library",
+  };
+  return secondaryHomes[pathname] ?? destinations.find(item => routeMatchesPath(pathname, item.to))?.label;
+}
+
+const sidebarPreferenceKey = "sense.workspace.sidebar-collapsed";
+function readSidebarCollapsed(): boolean {
+  try { return sessionStorage.getItem(sidebarPreferenceKey) === "true"; }
+  catch { return false; }
+}
 
 const routeIcons: Record<Destination["to"], string> = {
   "/people": "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
@@ -287,7 +308,7 @@ export function WorkspaceNavigation(): React.JSX.Element {
   const [moreOpen, setMoreOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const [unreadCount, setUnreadCount] = useState(0);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(readSidebarCollapsed);
   const moreButton = useRef<HTMLButtonElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const filterInput = useRef<HTMLInputElement>(null);
@@ -377,7 +398,11 @@ export function WorkspaceNavigation(): React.JSX.Element {
       <div className="workspace-sidebar-header">
         <div className="workspace-sidebar-brand-row">
           <NavLink to="/" className="workspace-shell-brand" aria-label="Sense Studios home"><span className="workspace-shell-brand-mark" aria-hidden="true">SS</span>{!collapsed && <span>SENSE STUDIOS</span>}</NavLink>
-          <button type="button" className="workspace-sidebar-collapse-toggle" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed} onClick={() => setCollapsed(previous => !previous)}>
+          <button type="button" className="workspace-sidebar-collapse-toggle" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed} onClick={() => {
+            const next = !collapsed;
+            setCollapsed(next);
+            try { sessionStorage.setItem(sidebarPreferenceKey, String(next)); } catch { /* Navigation still works without browser storage. */ }
+          }}>
             <svg aria-hidden="true" focusable="false" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="12" height="10" rx="2" /><path d="M6 3v10" /></svg>
           </button>
         </div>
@@ -422,9 +447,9 @@ export function WorkspaceNavigation(): React.JSX.Element {
   </>;
 }
 
-export function WorkspaceHeader({ session, contextLabel = "Dashboard" }: { session: { account: { email: string; kind: string } }; contextLabel?: string }): React.JSX.Element {
+export function WorkspaceHeader({ session, contextLabel = "Dashboard", children }: { session: { account: { email: string; kind: string } }; contextLabel?: string; children?: ReactNode }): React.JSX.Element {
   return (
-    <header className="workspace-header">
+    <div className="workspace-header">
       <div className="workspace-header-left">
         <span className="workspace-header-breadcrumb">Workspace</span>
         <span className="workspace-header-divider" aria-hidden="true"></span>
@@ -439,13 +464,14 @@ export function WorkspaceHeader({ session, contextLabel = "Dashboard" }: { sessi
         <NavLink to="/notifications" className="workspace-header-notifications" aria-label="Notifications">
           <Icon path="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" size={16} />
         </NavLink>
-        <div className="workspace-header-account">
+        <Link to="/settings" className="workspace-header-account" aria-label={`Account settings for ${session.account.email}`} title={session.account.email}>
           <span className="workspace-header-account-avatar" aria-hidden="true">{session.account.email.charAt(0).toUpperCase()}</span>
           <span className="workspace-header-account-email">{session.account.email}</span>
           <span className="workspace-header-account-kind">{session.account.kind === "OWNER" ? "Owner" : "Staff"}</span>
-        </div>
+        </Link>
+        {children}
       </div>
-    </header>
+    </div>
   );
 }
 

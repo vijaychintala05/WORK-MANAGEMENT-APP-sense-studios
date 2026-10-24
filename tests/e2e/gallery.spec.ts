@@ -40,6 +40,7 @@ const disposableS27Database = Boolean(process.env.DATABASE_URL && isS27Disposabl
   const { ClientPortalFilesService } = await import("../../apps/api/dist/client-portal-files.service.js") as { ClientPortalFilesService: new (db: any, scope: any, config: unknown) => any };
   const { ClientPortalAccessService } = await import("../../apps/api/dist/client-portal-access.service.js") as { ClientPortalAccessService: new (db: any) => any };
   const { ClientPortalIdentityService } = await import("../../apps/api/dist/client-portal-identity.service.js") as { ClientPortalIdentityService: new (db: any, mail: any, config: unknown) => any };
+  const { ReviewRoutingService } = await import("../../apps/api/dist/review-routing.service.js") as { ReviewRoutingService: new (db: any, clients: any, scope: any) => any };
   const { ClientReviewService } = await import("../../apps/api/dist/client-review.service.js") as { ClientReviewService: new (db: any, scope: any, identity: any, documents: any, revisions: any) => any };
   const { GalleryService } = await import("../../apps/api/dist/gallery.service.js") as { GalleryService: new (db: any, documents: any, scope: any, files: any, config: unknown) => any };
   const { AccountKind, PermissionEffect, PermissionScopeKind, TaskReviewRequirement } = await import("../../apps/api/dist/generated/prisma/client.js") as any;
@@ -111,7 +112,8 @@ const disposableS27Database = Boolean(process.env.DATABASE_URL && isS27Disposabl
     const source = await documents.finalize(owner, upload.uploadId);
     const drawing = await revisions.createDrawing(owner, projectId, { documentNumber: `S15-${suffix.slice(0, 8)}`, title: "Approved presentation elevation", fileId: source.id, reason: "Register exact initial R0" });
     const task = await tasks.create(owner, { projectId, ownerEmployeeId: staff[1]!.employee.id, title: `S15 approved task ${suffix.slice(0, 8)}`, type: "PROJECT", priority: "HIGH", targetDate: "2026-12-31", reviewRequirement: TaskReviewRequirement.BOTH, reason: "Create exact-revision review task" });
-    await reviews.assignReviewer(manager, task.id, { employeeId: staff[2]!.employee.id, expectedVersion: task.version, reason: "Assign independent S15 reviewer" });
+    await new ReviewRoutingService(database, clientReviews, scope).revoke(owner, task.id, "Preserve explicit manual publication for the gallery regression");
+    await reviews.assignReviewer(manager, task.id, { employeeId: staff[2]!.employee.id, expectedVersion: (await database.prisma.task.findUniqueOrThrow({ where: { id: task.id } })).version, reason: "Assign independent S15 reviewer" });
     let taskVersion = (await database.prisma.task.findUniqueOrThrow({ where: { id: task.id } })).version;
     await tasks.transition(submitter, task.id, { toState: "IN_PROGRESS", expectedVersion: taskVersion, reason: "Start exact-revision task" });
     taskVersion = (await database.prisma.task.findUniqueOrThrow({ where: { id: task.id } })).version;

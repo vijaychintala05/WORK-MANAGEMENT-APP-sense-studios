@@ -3,11 +3,12 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { NotificationCenter } from "./notifications.js";
 import { SignInHub, StaffRecovery } from "./auth-flow.js";
+import { SessionGroups } from "./session-groups.js";
 import { AuditRetentionCenter } from "./audit-retention.js";
 import { ApprovalQueue } from "./approval-queue.js";
 import { MyWorkManagement } from "./my-work-attention.js";
 import { ProjectsRoute } from "./projects-route.js";
-import { WorkspaceHeader, WorkspaceLayout } from "./workspace-navigation.js";
+import { WorkspaceHeader, WorkspaceLayout, workspaceContextLabel } from "./workspace-navigation.js";
 import { CrmWorkspace } from "./crm.js";
 import { ProjectWorkspace } from "./project.js";
 import { TaskWorkspace } from "./task.js";
@@ -413,7 +414,7 @@ function Identity({ session, onLogout, busy, error, settingsSection, peopleMode 
 
   return (
     <main className={`identity-content${peopleMode ? " people-route" : settingsMode ? " settings-shell" : ""}`}>
-      {peopleMode && <><header className="people-route-heading"><div className="workspace-account-heading"><span>People</span><span>{currentSession.account.email}</span></div><p className="settings-homes-eyebrow">WORKSPACE</p><h1>People</h1>{!selectedPersonContext && <p>{owner ? "Manage employee membership, responsibilities and access through the current authorized workflows." : "Your account and permitted reporting team. Team records require an explicit grant."}</p>}</header>{!selectedPersonContext && <nav className="people-personal-links" aria-label="People workspaces"><Link to="/my-work">My Work</Link><Link to="/settings?section=account">My account &amp; devices</Link><Link to="/workforce">Workforce</Link><Link to="/learning">Learning</Link>{owner && <Link to="/settings?section=organization&panel=access">Job roles &amp; permissions</Link>}</nav>}</>}
+      {peopleMode && <><header className="people-route-heading"><p className="settings-homes-eyebrow">WORKSPACE</p><h1>People</h1>{!selectedPersonContext && <p>{owner ? "Manage employee membership, responsibilities and access through the current authorized workflows." : "Your account and permitted reporting team. Team records require an explicit grant."}</p>}</header>{!selectedPersonContext && <nav className="people-personal-links" aria-label="People workspaces"><Link to="/my-work">My Work</Link><Link to="/settings?section=account">My account &amp; devices</Link><Link to="/workforce">Workforce</Link><Link to="/learning">Learning</Link>{owner && <Link to="/settings?section=organization&panel=access">Job roles &amp; permissions</Link>}</nav>}</>}
       {settingsMode && !peopleMode && <header className="settings-shell-heading"><p className="settings-homes-eyebrow">WORKSPACE</p><h1>Settings</h1><p>Manage your account and workspace preferences.</p></header>}
       {settingsMode && !peopleMode && !ownerNeedsSetup && <SettingsSectionNavigation active={effectiveSettingsSection as SettingsSection} owner={owner} staff={staff} />}
       {settingsMode && !peopleMode && !ownerNeedsSetup && <h2 className="settings-section-heading">{effectiveSettingsSection === "account" ? "Account & devices" : effectiveSettingsSection === "notifications" ? "Notifications" : effectiveSettingsSection === "organization" ? "Organization administration" : "Team workspace"}</h2>}
@@ -449,8 +450,8 @@ function Identity({ session, onLogout, busy, error, settingsSection, peopleMode 
         {sessionsError && <div className="sessions-error"><p role="alert" className="auth-error">{sessionsError}</p><button className="secondary-action" type="button" onClick={() => void loadDeviceSessions()}>Try again</button></div>}
         {!sessionsLoading && !sessionsError && deviceSessions?.length === 0 && <p className="identity-note" role="status">No sessions are available.</p>}
         {!sessionsLoading && !sessionsError && deviceSessions && deviceSessions.length > 0 && (
-          <ul className="session-list">
-            {deviceSessions.map((item) => {
+          <SessionGroups sessions={deviceSessions}>
+            {(item) => {
               const expired = new Date(item.expiresAt).getTime() <= Date.now();
               const status = item.current ? "Current device" : item.revokedAt ? "Revoked" : expired ? "Expired" : "Active";
               return <li className="session-item" key={item.id}>
@@ -461,8 +462,8 @@ function Identity({ session, onLogout, busy, error, settingsSection, peopleMode 
                 </div>
                 {!item.current && !item.revokedAt && !expired && <button className="secondary-action" type="button" disabled={revokingSessionId !== undefined} onClick={() => void revokeDeviceSession(item)}>{revokingSessionId === item.id ? "Revoking…" : "Revoke"}</button>}
               </li>;
-            })}
-          </ul>
+            }}
+          </SessionGroups>
         )}
       </section>
       </>}
@@ -737,6 +738,7 @@ function AuthHome({ legacyWorkspace = false }: { legacyWorkspace?: boolean }): R
 
 function HeaderControls(): React.JSX.Element | null {
   const { session } = useSessionProbe();
+  const location = useLocation();
   const [logoutBusy, setLogoutBusy] = useState(false);
   const [logoutError, setLogoutError] = useState("");
   const logoutInFlight = useRef(false);
@@ -768,15 +770,19 @@ function HeaderControls(): React.JSX.Element | null {
   };
 
   if (!session) return null;
+  const contextLabel = workspaceContextLabel(location.pathname);
+  const logoutButton = <button className="site-header-logout" type="button" onClick={() => void logout()} disabled={logoutBusy}>
+    {logoutBusy ? "Logging out…" : "Log out"}
+  </button>;
   return <div className="site-header-controls">
     {logoutError && <p className="site-header-error" role="alert">{logoutError}</p>}
+    {contextLabel && !session.ownerSetupRequired ? <WorkspaceHeader session={session} contextLabel={contextLabel}>{logoutButton}</WorkspaceHeader> : <>
     {!session.ownerSetupRequired && <NavLink className="site-header-notifications" to="/notifications" aria-label="Notifications">
       <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>
       <span>Notifications</span>
     </NavLink>}
-    <button className="site-header-logout" type="button" onClick={() => void logout()} disabled={logoutBusy}>
-      {logoutBusy ? "Logging out…" : "Log out"}
-    </button>
+    {logoutButton}
+    </>}
   </div>;
 }
 
@@ -790,7 +796,7 @@ function DocumentsRoute(): React.JSX.Element {
   if (failed) return <main className="identity-content"><section className="identity-section"><p className="auth-error" role="alert">We couldn’t check your session. Try again from the workspace home.</p><Link to="/">Return to workspace</Link></section></main>;
   if (!session) return <main className="identity-content"><section className="identity-section"><h1>Sign in to view project documents</h1><Link to="/">Return to sign in</Link></section></main>;
   if (session.account.kind === "OWNER" && session.ownerSetupRequired) return <main className="identity-content"><section className="identity-section"><h1>Complete Owner setup first</h1><Link to="/">Return to Owner setup</Link></section></main>;
-  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><div className="workspace-account-heading"><span>Project documents</span><span>{session.account.email}</span></div><DocumentWorkspace csrfToken={session.csrfToken} owner={session.account.kind === "OWNER"} /></main></WorkspaceLayout>;
+  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><DocumentWorkspace csrfToken={session.csrfToken} owner={session.account.kind === "OWNER"} /></main></WorkspaceLayout>;
 }
 
 function NotificationsRoute(): React.JSX.Element {
@@ -798,7 +804,7 @@ function NotificationsRoute(): React.JSX.Element {
   if (session === undefined && !failed) return <main className="identity-content"><p className="loading-state" role="status">Checking your session…</p></main>;
   if (failed) return <main className="identity-content"><section className="identity-section"><p className="auth-error" role="alert">We couldn’t check your session. Try again from the workspace home.</p><Link to="/workspace">Return to workspace</Link></section></main>;
   if (!session) return <main className="identity-content"><section className="identity-section"><h1>Sign in to view notifications</h1><Link to="/">Return to sign in</Link></section></main>;
-  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><div className="workspace-account-heading"><span>Notifications</span><span>{session.account.email}</span></div><NotificationCenter csrfToken={session.csrfToken} initiallyOpen /></main></WorkspaceLayout>;
+  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><NotificationCenter csrfToken={session.csrfToken} initiallyOpen /></main></WorkspaceLayout>;
 }
 
 function SettingsRoute(): React.JSX.Element {
@@ -840,7 +846,7 @@ function DecisionsRoute(): React.JSX.Element {
   if (failed) return <main className="identity-content"><section className="identity-section"><p className="auth-error" role="alert">We couldn’t check your session. Try again from the workspace home.</p><Link to="/workspace">Return to workspace</Link></section></main>;
   if (!session) return <main className="identity-content"><section className="identity-section"><h1>Sign in to view decisions</h1><Link to="/">Return to sign in</Link></section></main>;
   if (session.account.kind === "OWNER" && session.ownerSetupRequired) return <main className="identity-content"><section className="identity-section"><h1>Complete Owner setup first</h1><Link to="/workspace">Return to Owner setup</Link></section></main>;
-  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><div className="workspace-account-heading"><span>Decisions</span><span>{session.account.email}</span></div><DecisionsHome /></main></WorkspaceLayout>;
+  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><DecisionsHome /></main></WorkspaceLayout>;
 }
 
 function PeopleRoute(): React.JSX.Element {
@@ -858,7 +864,7 @@ function TasksRoute(): React.JSX.Element {
   if (failed) return <main className="identity-content"><section className="identity-section"><p className="auth-error" role="alert">We couldn’t check your session. Try again from the workspace home.</p><Link to="/">Return to workspace</Link></section></main>;
   if (!session) return <main className="identity-content"><section className="identity-section"><h1>Sign in to view tasks</h1><Link to="/">Return to sign in</Link></section></main>;
   if (session.account.kind === "OWNER" && session.ownerSetupRequired) return <main className="identity-content"><section className="identity-section"><h1>Complete Owner setup first</h1><Link to="/">Return to Owner setup</Link></section></main>;
-  return <WorkspaceLayout key={session.account.id}><main className="identity-content tasks-route"><div className="workspace-account-heading"><span>Tasks</span><span>{session.account.email}</span></div><TaskWorkspace csrfToken={session.csrfToken} owner={session.account.kind === "OWNER"} listFirst /></main></WorkspaceLayout>;
+  return <WorkspaceLayout key={session.account.id}><main className="identity-content tasks-route"><TaskWorkspace csrfToken={session.csrfToken} owner={session.account.kind === "OWNER"} listFirst /></main></WorkspaceLayout>;
 }
 
 function MyWorkRoute(): React.JSX.Element {
@@ -952,7 +958,7 @@ function RevisionsRoute(): React.JSX.Element {
   if (failed) return <main className="identity-content"><section className="identity-section"><p className="auth-error" role="alert">We couldn’t check your session. Try again from the workspace home.</p><Link to="/">Return to workspace</Link></section></main>;
   if (!session) return <main className="identity-content"><section className="identity-section"><h1>Sign in to view the drawing register</h1><Link to="/">Return to sign in</Link></section></main>;
   if (session.account.kind === "OWNER" && session.ownerSetupRequired) return <main className="identity-content"><section className="identity-section"><h1>Complete Owner setup first</h1><Link to="/">Return to Owner setup</Link></section></main>;
-  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><div className="workspace-account-heading"><span>Drawing register</span><span>{session.account.email}</span></div><RevisionWorkspace csrfToken={session.csrfToken} /></main></WorkspaceLayout>;
+  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><RevisionWorkspace csrfToken={session.csrfToken} /></main></WorkspaceLayout>;
 }
 
 function ReviewsRoute(): React.JSX.Element {
@@ -961,7 +967,7 @@ function ReviewsRoute(): React.JSX.Element {
   if (failed) return <main className="identity-content"><section className="identity-section"><p className="auth-error" role="alert">We couldn’t check your session. Try again from the workspace home.</p><Link to="/">Return to workspace</Link></section></main>;
   if (!session) return <main className="identity-content"><section className="identity-section"><h1>Sign in to review project drawings</h1><Link to="/">Return to sign in</Link></section></main>;
   if (session.account.kind === "OWNER" && session.ownerSetupRequired) return <main className="identity-content"><section className="identity-section"><h1>Complete Owner setup first</h1><Link to="/">Return to Owner setup</Link></section></main>;
-  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><div className="workspace-account-heading"><span>Internal reviews</span><span>{session.account.email}</span></div><ReviewWorkspace csrfToken={session.csrfToken} owner={session.account.kind === "OWNER"} /></main></WorkspaceLayout>;
+  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><ReviewWorkspace csrfToken={session.csrfToken} owner={session.account.kind === "OWNER"} /></main></WorkspaceLayout>;
 }
 
 function ClientReviewsRoute(): React.JSX.Element {
@@ -970,7 +976,7 @@ function ClientReviewsRoute(): React.JSX.Element {
   if (failed) return <main className="identity-content"><section className="identity-section"><p className="auth-error" role="alert">We couldn’t check your session. Try again from the workspace home.</p><Link to="/">Return to workspace</Link></section></main>;
   if (!session) return <main className="identity-content"><section className="identity-section"><h1>Sign in to manage client reviews</h1><Link to="/">Return to sign in</Link></section></main>;
   if (session.account.kind === "OWNER" && session.ownerSetupRequired) return <main className="identity-content"><section className="identity-section"><h1>Complete Owner setup first</h1><Link to="/">Return to Owner setup</Link></section></main>;
-  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><div className="workspace-account-heading"><span>Client reviews</span><span>{session.account.email}</span></div><StaffClientReviewWorkspace csrfToken={session.csrfToken} owner={session.account.kind === "OWNER"} /></main></WorkspaceLayout>;
+  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><StaffClientReviewWorkspace csrfToken={session.csrfToken} owner={session.account.kind === "OWNER"} /></main></WorkspaceLayout>;
 }
 
 function TurnkeyRoute(): React.JSX.Element {
@@ -979,7 +985,7 @@ function TurnkeyRoute(): React.JSX.Element {
   if (failed) return <main className="identity-content"><section className="identity-section"><p className="auth-error" role="alert">We couldn’t check your session. Try again from the workspace home.</p><Link to="/">Return to workspace</Link></section></main>;
   if (!session) return <main className="identity-content"><section className="identity-section"><h1>Sign in to view Turnkey operations</h1><Link to="/">Return to sign in</Link></section></main>;
   if (session.account.kind === "OWNER" && session.ownerSetupRequired) return <main className="identity-content"><section className="identity-section"><h1>Complete Owner setup first</h1><Link to="/">Return to Owner setup</Link></section></main>;
-  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><div className="workspace-account-heading"><span>Turnkey operations</span><span>{session.account.email}</span></div><TurnkeyWorkspace csrfToken={session.csrfToken} /></main></WorkspaceLayout>;
+  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><TurnkeyWorkspace csrfToken={session.csrfToken} /></main></WorkspaceLayout>;
 }
 
 export function App(): React.JSX.Element {
@@ -1072,7 +1078,7 @@ function ExternalAccessRoute(): React.JSX.Element {
   if (failed) return <main className="identity-content"><section className="identity-section"><p className="auth-error" role="alert">We couldn’t check your session. Try again from the workspace home.</p><Link to="/">Return to workspace</Link></section></main>;
   if (!session) return <main className="identity-content"><section className="identity-section"><h1>Sign in to manage external access</h1><Link to="/">Return to sign in</Link></section></main>;
   if (session.account.kind === "OWNER" && session.ownerSetupRequired) return <main className="identity-content"><section className="identity-section"><h1>Complete Owner setup first</h1><Link to="/">Return to Owner setup</Link></section></main>;
-  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><div className="workspace-account-heading"><span>External access</span><span>{session.account.email}</span></div><StaffExternalAccessWorkspace csrfToken={session.csrfToken} owner={session.account.kind === "OWNER"} /></main></WorkspaceLayout>;
+  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><StaffExternalAccessWorkspace csrfToken={session.csrfToken} owner={session.account.kind === "OWNER"} /></main></WorkspaceLayout>;
 }
 
 function TimeRoute(): React.JSX.Element {
@@ -1081,7 +1087,7 @@ function TimeRoute(): React.JSX.Element {
   if (failed) return <main className="identity-content"><section className="identity-section"><p className="auth-error" role="alert">We couldn’t check your session. Try again from the workspace home.</p><Link to="/">Return to workspace</Link></section></main>;
   if (!session) return <main className="identity-content"><section className="identity-section"><h1>Sign in to view time records</h1><Link to="/">Return to sign in</Link></section></main>;
   if (session.account.kind === "OWNER" && session.ownerSetupRequired) return <main className="identity-content"><section className="identity-section"><h1>Complete Owner setup first</h1><Link to="/">Return to Owner setup</Link></section></main>;
-  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><div className="workspace-account-heading"><span>Time</span><span>{session.account.email}</span></div><TimeWorkspace csrfToken={session.csrfToken} owner={session.account.kind === "OWNER"} /></main></WorkspaceLayout>;
+  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><TimeWorkspace csrfToken={session.csrfToken} owner={session.account.kind === "OWNER"} /></main></WorkspaceLayout>;
 }
 
 function WorkforceRoute(): React.JSX.Element {
@@ -1090,7 +1096,7 @@ function WorkforceRoute(): React.JSX.Element {
   if (failed) return <main className="identity-content"><section className="identity-section"><p className="auth-error" role="alert">We couldn’t check your session. Try again from the workspace home.</p><Link to="/">Return to workspace</Link></section></main>;
   if (!session) return <main className="identity-content"><section className="identity-section"><h1>Sign in to view workforce records</h1><Link to="/">Return to sign in</Link></section></main>;
   if (session.account.kind === "OWNER" && session.ownerSetupRequired) return <main className="identity-content"><section className="identity-section"><h1>Complete Owner setup first</h1><Link to="/">Return to Owner setup</Link></section></main>;
-  return <WorkspaceLayout key={session.account.id}><main className="identity-content workforce-route"><div className="workspace-account-heading"><span>Workforce</span><span>{session.account.email}</span></div><WorkforceWorkspace csrfToken={session.csrfToken} owner={session.account.kind === "OWNER"} /></main></WorkspaceLayout>;
+  return <WorkspaceLayout key={session.account.id}><main className="identity-content workforce-route"><WorkforceWorkspace csrfToken={session.csrfToken} owner={session.account.kind === "OWNER"} /></main></WorkspaceLayout>;
 }
 
 function LearningRoute({ area }: { area?: "skills" | "training" | "library" }): React.JSX.Element {
@@ -1108,7 +1114,7 @@ function LearningRoute({ area }: { area?: "skills" | "training" | "library" }): 
   preservedQuery.delete("panel");
   const queryString = preservedQuery.toString();
   const legacyCombined = panel === "legacy";
-  return <WorkspaceLayout key={session.account.id}><main className="identity-content learning-route"><div className="workspace-account-heading"><span>{panel === "library" ? "Library" : panel === "training" ? "Training" : panel === "legacy" ? "Skills & Training" : "Skills"}</span><span>{session.account.email}</span></div><nav className="learning-area-tabs" aria-label="Learning areas">{areaLinks.map(([key, label, path]) => <Link key={key} to={`${path}${queryString ? `&${queryString}` : ""}`} aria-current={panel === key ? "page" : undefined}>{label}</Link>)}</nav>{panel === "library" ? <LibraryWorkspace csrfToken={session.csrfToken} /> : panel === "training" ? <TrainingWorkspace csrfToken={session.csrfToken} /> : legacyCombined ? <SkillsTrainingWorkspace csrfToken={session.csrfToken} /> : <SkillsWorkspace csrfToken={session.csrfToken} />}</main></WorkspaceLayout>;
+  return <WorkspaceLayout key={session.account.id}><main className="identity-content learning-route"><nav className="learning-area-tabs" aria-label="Learning areas">{areaLinks.map(([key, label, path]) => <Link key={key} to={`${path}${queryString ? `&${queryString}` : ""}`} aria-current={panel === key ? "page" : undefined}>{label}</Link>)}</nav>{panel === "library" ? <LibraryWorkspace csrfToken={session.csrfToken} /> : panel === "training" ? <TrainingWorkspace csrfToken={session.csrfToken} /> : legacyCombined ? <SkillsTrainingWorkspace csrfToken={session.csrfToken} /> : <SkillsWorkspace csrfToken={session.csrfToken} />}</main></WorkspaceLayout>;
 }
 
 function PerformanceRoute({ initialTab = "employee", focused = false }: { initialTab?: "employee" | "project"; focused?: boolean }): React.JSX.Element {
@@ -1118,8 +1124,7 @@ function PerformanceRoute({ initialTab = "employee", focused = false }: { initia
   if (!session) return <main className="identity-content"><section className="identity-section"><h1>Sign in to view performance records</h1><Link to="/">Return to sign in</Link></section></main>;
   if (session.account.kind === "OWNER" && session.ownerSetupRequired) return <main className="identity-content"><section className="identity-section"><h1>Complete Owner setup first</h1><Link to="/">Return to Owner setup</Link></section></main>;
   const projectId = new URLSearchParams(window.location.search).get("projectId") ?? undefined;
-  const title = initialTab === "project" ? "Project Health" : "Performance";
-  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><div className="workspace-account-heading"><span>{title}</span><span>{session.account.email}</span></div><InsightsNavigation {...(projectId ? { projectId } : {})} /><PerformanceWorkspace csrfToken={session.csrfToken} owner={session.account.kind === "OWNER"} initialTab={initialTab} focused={focused} /></main></WorkspaceLayout>;
+  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><InsightsNavigation {...(projectId ? { projectId } : {})} /><PerformanceWorkspace csrfToken={session.csrfToken} owner={session.account.kind === "OWNER"} initialTab={initialTab} focused={focused} /></main></WorkspaceLayout>;
 }
 
 function DashboardRoute({ initialTab = "dashboard", focused = false }: { initialTab?: "dashboard" | "summaries" | "reports" | "schedules"; focused?: boolean }): React.JSX.Element {
@@ -1129,7 +1134,7 @@ function DashboardRoute({ initialTab = "dashboard", focused = false }: { initial
   if (!session) return <main className="identity-content"><section className="identity-section"><h1>Sign in to view your dashboard</h1><Link to="/">Return to sign in</Link></section></main>;
   if (session.account.kind === "OWNER" && session.ownerSetupRequired) return <main className="identity-content"><section className="identity-section"><h1>Complete Owner setup first</h1><Link to="/">Return to Owner setup</Link></section></main>;
   const reportsHome = initialTab === "reports";
-  return <WorkspaceLayout key={session.account.id}><WorkspaceHeader session={session} contextLabel={reportsHome ? "Reports" : "Dashboard"} /><main className="identity-content">{reportsHome && <InsightsNavigation />}<DashboardWorkspace accountId={session.account.id} csrfToken={session.csrfToken} owner={session.account.kind === "OWNER"} initialTab={initialTab} focused={focused} /></main></WorkspaceLayout>;
+  return <WorkspaceLayout key={session.account.id}><main className="identity-content">{reportsHome && <InsightsNavigation />}<DashboardWorkspace accountId={session.account.id} csrfToken={session.csrfToken} owner={session.account.kind === "OWNER"} initialTab={initialTab} focused={focused} /></main></WorkspaceLayout>;
 }
 
 function IntegrationsRoute(): React.JSX.Element {
@@ -1138,7 +1143,7 @@ function IntegrationsRoute(): React.JSX.Element {
   if (failed) return <main className="identity-content"><section className="identity-section"><p className="auth-error" role="alert">We couldn’t check your session. Try again from the workspace home.</p><Link to="/">Return to workspace</Link></section></main>;
   if (!session) return <main className="identity-content"><section className="identity-section"><h1>Sign in to manage calendar integrations</h1><Link to="/">Return to sign in</Link></section></main>;
   if (session.account.kind === "OWNER" && session.ownerSetupRequired) return <main className="identity-content"><section className="identity-section"><h1>Complete Owner setup first</h1><Link to="/">Return to Owner setup</Link></section></main>;
-  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><div className="workspace-account-heading"><span>Integrations</span><span>{session.account.email}</span></div><IntegrationsWorkspace csrfToken={session.csrfToken} /></main></WorkspaceLayout>;
+  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><IntegrationsWorkspace csrfToken={session.csrfToken} /></main></WorkspaceLayout>;
 }
 
 function AutomationRoute({ savedReportsOnly = false }: { savedReportsOnly?: boolean }): React.JSX.Element {
@@ -1147,7 +1152,7 @@ function AutomationRoute({ savedReportsOnly = false }: { savedReportsOnly?: bool
   if (failed) return <main className="identity-content"><section className="identity-section"><p className="auth-error" role="alert">We couldn’t check your session. Try again from the workspace home.</p><Link to="/">Return to workspace</Link></section></main>;
   if (!session) return <main className="identity-content"><section className="identity-section"><h1>Sign in to manage automation and reports</h1><Link to="/">Return to sign in</Link></section></main>;
   if (session.account.kind === "OWNER" && session.ownerSetupRequired) return <main className="identity-content"><section className="identity-section"><h1>Complete Owner setup first</h1><Link to="/">Return to Owner setup</Link></section></main>;
-  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><div className="workspace-account-heading"><span>{savedReportsOnly ? "Saved Reports" : "Automation & reports"}</span><span>{session.account.email}</span></div>{savedReportsOnly && <InsightsNavigation />}<AutomationWorkspace csrfToken={session.csrfToken} mode={savedReportsOnly ? "saved-reports" : "automation"} /></main></WorkspaceLayout>;
+  return <WorkspaceLayout key={session.account.id}><main className="identity-content">{savedReportsOnly && <InsightsNavigation />}<AutomationWorkspace csrfToken={session.csrfToken} mode={savedReportsOnly ? "saved-reports" : "automation"} /></main></WorkspaceLayout>;
 }
 
 function SiteRoute(): React.JSX.Element {
@@ -1156,7 +1161,7 @@ function SiteRoute(): React.JSX.Element {
   if (failed) return <SiteOfflineCaptureRoute />;
   if (!session) { const pointer = readOfflinePointer(); if (pointer) void purgeOfflineAccount(pointer.accountId).catch(() => undefined); if (pointer) window.dispatchEvent(new Event("sense-session-ended")); clearOfflinePointer(); return <main className="identity-content"><section className="identity-section"><h1>Sign in to view site delivery</h1><Link to="/">Return to sign in</Link></section></main>; }
   if (session.account.kind === "OWNER" && session.ownerSetupRequired) return <main className="identity-content"><section className="identity-section"><h1>Complete Owner setup first</h1><Link to="/">Return to Owner setup</Link></section></main>;
-  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><div className="workspace-account-heading"><span>Site delivery</span><span>{session.account.email}</span></div><SiteWorkspace csrfToken={session.csrfToken} accountId={session.account.id} /></main></WorkspaceLayout>;
+  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><SiteWorkspace csrfToken={session.csrfToken} accountId={session.account.id} /></main></WorkspaceLayout>;
 }
 
 function AiAssistanceRoute(): React.JSX.Element {
@@ -1165,5 +1170,5 @@ function AiAssistanceRoute(): React.JSX.Element {
   if (failed) return <main className="identity-content"><section className="identity-section"><p className="auth-error" role="alert">We couldn’t check your session. Try again from the workspace home.</p><Link to="/">Return to workspace</Link></section></main>;
   if (!session) return <main className="identity-content"><section className="identity-section"><h1>Sign in to view evidence assistance</h1><Link to="/">Return to workspace</Link></section></main>;
   if (session.account.kind === "OWNER" && session.ownerSetupRequired) return <main className="identity-content"><section className="identity-section"><h1>Complete Owner setup first</h1><Link to="/">Return to workspace</Link></section></main>;
-  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><div className="workspace-account-heading"><span>Evidence assistance</span><span>{session.account.email}</span></div><AiAssistanceWorkspace csrfToken={session.csrfToken} /></main></WorkspaceLayout>;
+  return <WorkspaceLayout key={session.account.id}><main className="identity-content"><AiAssistanceWorkspace csrfToken={session.csrfToken} /></main></WorkspaceLayout>;
 }

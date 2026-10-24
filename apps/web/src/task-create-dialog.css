@@ -6,6 +6,10 @@
   --task-muted: #667069;
   --task-line: #e8e8e2;
   --task-accent: #244f43;
+  /* Reference-lock values: one control radius and panel radius across the whole dialog. */
+  --create-radius: 8px;
+  --create-radius-panel: 12px;
+  --create-control-min: 44px;
   position: fixed;
   inset: 0;
   width: min(760px, calc(100vw - 32px));
@@ -35,11 +39,106 @@
 .task-create-dialog__close:disabled { opacity: .5; cursor: not-allowed; }
 .task-create-dialog__body { min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 22px 24px; }
 .task-create-dialog .task-form { margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
+
+/* Refined composer: brief column on the left, assignment & timing panel on the right. */
+.task-create-dialog .task-composer__core { display: grid; grid-template-columns: minmax(0, 1fr) 280px; grid-template-areas: "brief context"; column-gap: 28px; row-gap: 18px; align-items: start; }
+.task-create-dialog .task-composer__brief { grid-area: brief; display: grid; gap: 16px; min-width: 0; }
+.task-create-dialog .task-composer__context { grid-area: context; background: #f4f6f0; border: 1px solid var(--create-line); border-radius: 11px; padding: 17px; display: grid; gap: 15px; min-width: 0; align-content: start; }
+.task-create-dialog .task-composer__context-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--create-line); }
+.task-create-dialog .task-composer__context-header strong { font-size: 12px; font-weight: 750; letter-spacing: .2px; }
+.task-create-dialog .task-composer__status { display: inline-flex; align-items: center; gap: 5px; background: #eaf1e6; color: var(--create-pine); padding: 4px 9px; border-radius: 5px; font-size: 10px; font-weight: 650; text-transform: capitalize; }
+.task-create-dialog .task-composer__status[data-state="loading"] { background: #efece3; color: var(--task-muted); }
+.task-create-dialog .task-composer__status[data-state="error"] { background: #fff2f3; color: #8d2430; }
+.task-create-dialog .task-composer__context .task-form-note { margin: -6px 0 0; }
+.task-create-dialog .task-composer__context .task-assignment { margin: 0; padding: 0 .4rem .4rem; border: 1px solid transparent; background: transparent; }
+.task-create-dialog .task-composer__pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.task-create-dialog .task-field { display: flex; flex-direction: column; gap: 5px; margin: 0; font-size: 12px; font-weight: 650; color: var(--create-ink); }
+.task-create-dialog .task-field__optional { font-weight: 400; color: var(--task-muted); }
+.task-create-dialog .task-field__helper { font-size: 11px; font-weight: 400; line-height: 1.5; color: var(--task-muted); }
+.task-create-dialog .task-field--title input { font-size: 21px; font-weight: 600; letter-spacing: -.3px; min-height: 58px; padding: 11px 12px; background: transparent; border: none; border-bottom: 2px solid var(--create-line); border-radius: 0; transition: border-color .15s; }
+.task-create-dialog .task-field--title input:focus { outline: none; border-bottom-color: var(--create-pine); }
+.task-create-dialog .task-field--title input::placeholder { color: #9aa79e; font-weight: 400; }
+.task-create-dialog .task-field input[type="date"] { color: var(--create-ink); }
+.task-create-dialog .task-field > h3 { display: flex; align-items: baseline; gap: 6px; margin: 2px 0; font-size: 14px; font-weight: 700; letter-spacing: -.1px; }
+.task-create-dialog .task-field .task-optional-planning { margin: 0; }
+
+/* Quick-capture row: compact essentials strip below the title. */
+/* Desktop layout: Priority (full width) · Type · Target date · Project · Owner.
+   Type and Target date get the two widest slots so their labels never truncate. */
+.task-create-dialog .task-quick-capture { display: grid; gap: 14px; }
+.task-create-dialog .task-quick-capture__row { display: grid; grid-template-columns: 1.05fr 1.05fr 1fr .85fr; gap: 12px; align-items: end; }
+/* Priority spans the full top row — one click cycles, no truncation */
+.task-create-dialog .task-quick-capture__row > :nth-child(1) { grid-column: 1 / -1; }
+.task-create-dialog .task-chip { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.task-create-dialog .task-chip__label, .task-create-dialog .task-quick-capture .task-field { font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--task-muted); }
+.task-create-dialog .task-quick-capture .task-field select, .task-create-dialog .task-quick-capture .task-field input { font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: normal; color: var(--create-ink); }
+.task-create-dialog .task-chip select, .task-create-dialog .task-chip input { min-height: 38px; font-size: 13px; text-overflow: clip; }
+/* Keep the native select affordance visible without letting the label clip the control */
+.task-create-dialog .task-quick-capture .task-field select, .task-create-dialog .task-quick-capture .task-field input { width: 100%; min-width: 0; min-height: 38px; font-size: 13px; }
+.task-create-dialog .task-chip--owner { min-width: 0; }
+.task-create-dialog .task-chip__value { display: inline-flex; align-items: center; min-height: 38px; padding: 0 12px; font-size: 13px; font-weight: 500; color: var(--create-ink); background: #f4f6f0; border: 1px solid var(--create-line); border-radius: var(--create-radius, 8px); }
+
+/* Priority toggle: colored dot + button + native select */
+.task-create-dialog .task-priority-toggle { display: grid; grid-template-columns: 1fr auto; align-items: stretch; gap: 0; }
+.task-create-dialog .task-priority-toggle__button { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 12px; border: 1px solid var(--create-line); border-radius: var(--create-radius, 8px) 0 0 var(--create-radius, 8px); background: #fff; font: inherit; font-size: 13px; font-weight: 600; color: var(--create-ink); cursor: pointer; transition: background .12s, border-color .12s; }
+.task-create-dialog .task-priority-toggle__button:hover { background: #f4f6f0; }
+.task-create-dialog .task-priority-toggle__button:disabled { opacity: .5; cursor: not-allowed; }
+.task-create-dialog .task-priority-toggle__button--error { border-color: #aa2f3d; box-shadow: 0 0 0 1px #aa2f3d; }
+.task-create-dialog .task-priority-select { min-height: 38px; padding: 0 8px; border: 1px solid var(--create-line); border-left: 0; border-radius: 0 var(--create-radius, 8px) var(--create-radius, 8px) 0; background: #fff; font: inherit; font-size: 13px; width: auto; min-width: 84px; }
+.task-create-dialog .task-priority-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; }
+.task-create-dialog .task-priority-dot--low { background: #8a9b8f; }
+.task-create-dialog .task-priority-dot--medium { background: #4a7a5c; }
+.task-create-dialog .task-priority-dot--high { background: #d97706; }
+.task-create-dialog .task-priority-dot--critical { background: #dc2626; }
+
+.task-create-dialog .task-self-owner { display: flex; align-items: center; gap: 9px; min-height: 46px; padding: 8px 10px; background: #fff; border: 1px solid var(--create-line); border-radius: 8px; font-size: 12px; font-weight: 500; color: var(--create-ink); }
+.task-create-dialog .task-self-owner small { color: var(--task-muted); font-weight: 400; }
+.task-create-dialog .task-self-owner__initials { display: grid; place-items: center; width: 27px; height: 27px; flex: 0 0 27px; border-radius: 50%; background: #e7eee3; color: var(--create-pine); font-size: 10px; font-weight: 750; }
+
+.task-create-dialog .task-field-error { margin: 0; color: #aa2f3d; font-size: 11px; font-weight: 500; }
+.task-create-dialog .task-owner-summary { margin: 0; font-size: 11px; font-weight: 400; color: var(--task-muted); }
+.task-create-dialog input[aria-invalid="true"], .task-create-dialog select[aria-invalid="true"], .task-create-dialog textarea[aria-invalid="true"] { border-color: #aa2f3d; box-shadow: 0 0 0 1px #aa2f3d; }
+.task-create-dialog .task-optional-planning summary { font-size: 12px; min-height: 48px; display: flex; align-items: center; }
+
+@media (max-width: 750px) {
+  .task-create-dialog .task-composer__core { grid-template-columns: minmax(0, 1fr); grid-template-areas: "brief" "context"; gap: 19px; }
+  .task-create-dialog .task-field--title input { font-size: 19px; }
+  .task-create-dialog .task-composer__context input, .task-create-dialog .task-composer__context select,
+  .task-create-dialog .task-composer__context textarea { font-size: 16px; }
+  .task-create-dialog .task-composer__pair { grid-template-columns: 1fr; }
+  /* Mobile: quick-capture becomes a 2-column grid so chips have room.
+     Target date spans the full width below Type — a native date control needs
+     its own row at 390px to render without cramped/cut-off date parts. */
+  .task-create-dialog .task-quick-capture__row { grid-template-columns: 1fr 1fr; gap: 12px 14px; }
+  /* Priority takes the full top row so the toggle + select never truncate */
+  .task-create-dialog .task-quick-capture__row > :nth-child(1) { grid-column: 1 / -1; }
+  .task-create-dialog .task-quick-capture__row > :nth-child(3) { grid-column: 1 / -1; }
+  .task-create-dialog .task-chip--owner { min-width: 0; }
+  /* Keep Type and Target date side by side; Project and Owner below */
+  .task-create-dialog .task-quick-capture__row > :nth-child(2) { min-width: 0; }
+  .task-create-dialog .task-quick-capture__row .task-chip select,
+  .task-create-dialog .task-quick-capture__row .task-field select,
+  .task-create-dialog .task-quick-capture__row .task-field input { font-size: 15px; }
+  /* Touch targets: 44px minimum on all quick-capture controls at mobile sizes */
+  .task-create-dialog .task-quick-capture__row .task-chip select,
+  .task-create-dialog .task-quick-capture__row .task-chip input,
+  .task-create-dialog .task-quick-capture__row .task-field select,
+  .task-create-dialog .task-quick-capture__row .task-field input,
+  .task-create-dialog .task-priority-toggle__button,
+  .task-create-dialog .task-priority-select { min-height: 44px; }
+}
+
 .task-create-dialog :is(input, select, textarea, button) { font: inherit; }
 .task-create-dialog :is(input:not([type="checkbox"]), select, textarea) { width: 100%; min-width: 0; min-height: 44px; padding: .62rem .7rem; border: 1px solid var(--create-line); border-radius: 8px; background: #fff; color: var(--create-ink); }
 .task-create-dialog textarea { resize: vertical; }
 .task-create-dialog input[type="checkbox"] { accent-color: var(--create-pine); }
 .task-create-dialog__footer { display: flex; flex: 0 0 auto; justify-content: flex-end; gap: 10px; padding: 14px 24px calc(14px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--create-line); background: #fff; }
+/* CTA: one named primary action, pine fill — no competing emphasis inside the dialog. */
+.task-create-dialog__footer button[type="submit"] { min-height: 44px; padding: 0 18px; border: 0; border-radius: var(--create-radius, 8px); background: var(--create-pine); color: #fff; font-size: 14px; font-weight: 650; cursor: pointer; }
+.task-create-dialog__footer button[type="submit"]:hover:not(:disabled) { background: #1d4036; }
+.task-create-dialog__footer button[type="submit"]:disabled { opacity: .55; cursor: not-allowed; }
+.task-create-dialog__footer button:not([type="submit"]) { min-height: 44px; padding: 0 14px; border: 1px solid var(--create-line); border-radius: var(--create-radius, 8px); background: #fff; color: var(--create-ink); font-size: 14px; font-weight: 500; cursor: pointer; }
 @media (max-width: 700px) {
   .task-create-dialog { width: 100vw; max-width: 100vw; max-height: 94dvh; height: 94dvh; border: 0; border-radius: 14px 14px 0 0; margin: auto 0 0; }
   .task-create-dialog__frame { height: 100%; max-height: 100%; }

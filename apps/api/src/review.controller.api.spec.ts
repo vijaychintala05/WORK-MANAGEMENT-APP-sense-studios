@@ -1,3 +1,4 @@
+import { ReviewRoutingService } from "./review-routing.service.js";
 import "reflect-metadata";
 import { ForbiddenException, UnauthorizedException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
@@ -57,7 +58,7 @@ describe("S13 review HTTP boundary", () => {
     const config: RuntimeConfig = { nodeEnv: "test", port: 4000, databaseUrl: "postgresql://test:test@localhost:5432/test", webOrigin: origin, ownerBootstrapEmail: "owner@example.test", ownerBootstrapSecret: "b".repeat(48) };
     const module = await Test.createTestingModule({ controllers: [ReviewController], providers: [
       { provide: IdentityService, useValue: identity }, { provide: ProjectService, useValue: projects },
-      { provide: ReviewService, useValue: reviews }, { provide: RUNTIME_CONFIG, useValue: config }
+      { provide: ReviewService, useValue: reviews }, { provide: ReviewRoutingService, useValue: { configure: jest.fn(async () => ({})), retry: jest.fn(async () => ({})), revoke: jest.fn(async () => ({})) } }, { provide: RUNTIME_CONFIG, useValue: config }
     ] }).compile();
     app = module.createNestApplication();
     app.setGlobalPrefix("api/v1");

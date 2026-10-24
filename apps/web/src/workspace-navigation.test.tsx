@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
-import { WorkspaceHeader, WorkspaceLayout } from "./workspace-navigation.js";
+import { WorkspaceHeader, WorkspaceLayout, workspaceContextLabel } from "./workspace-navigation.js";
 
 let previousWidth = window.innerWidth;
 
@@ -30,6 +30,7 @@ it("opens the native page-finder dialog and navigates from its focused search in
 });
 
 beforeEach(() => {
+  sessionStorage.clear();
   previousWidth = window.innerWidth;
   Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
   Object.defineProperty(HTMLDialogElement.prototype, "showModal", { configurable: true, value(this: HTMLDialogElement) { this.setAttribute("open", ""); } });
@@ -63,6 +64,34 @@ function renderWorkspace(path: string): void {
 }
 
 describe("workspace navigation", () => {
+  it("retains sidebar collapse when moving between route shells", () => {
+    renderWorkspace("/tasks");
+    fireEvent.click(screen.getByRole("button", { name: "Collapse sidebar" }));
+    cleanup();
+    renderWorkspace("/projects");
+    expect(screen.getByRole("button", { name: "Expand sidebar" })).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(screen.getByRole("button", { name: "Expand sidebar" }));
+    cleanup();
+    renderWorkspace("/dashboard");
+    expect(screen.getByRole("button", { name: "Collapse sidebar" })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("keeps navigation usable when browser preference storage is unavailable", () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("storage blocked"); });
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("storage blocked"); });
+    renderWorkspace("/tasks");
+    fireEvent.click(screen.getByRole("button", { name: "Collapse sidebar" }));
+    expect(screen.getByRole("button", { name: "Expand sidebar" })).toBeInTheDocument();
+  });
+
+  it("provides precise contexts for secondary homes and excludes sign-in/portal pages", () => {
+    for (const [path, label] of [["/reports", "Reports"], ["/saved-reports", "Saved reports"], ["/project-health", "Project health"], ["/learning/library", "Library"], ["/settings", "Settings"], ["/tasks", "Tasks"]]) {
+      expect(workspaceContextLabel(path!)).toBe(label);
+    }
+    expect(workspaceContextLabel("/staff/sign-in")).toBeUndefined();
+    expect(workspaceContextLabel("/client-portal/login")).toBeUndefined();
+  });
+
   it("applies the studio shell and keeps all mobile destinations accessible", () => {
     renderWorkspace("/my-work");
     expect(screen.getByText("Current page").closest(".workspace-layout")).toHaveClass("workspace-layout--my-work");

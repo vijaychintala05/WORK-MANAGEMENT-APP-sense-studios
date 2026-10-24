@@ -1,3 +1,4 @@
+import { ReviewRoutingService } from "./review-routing.service.js";
 import { IntegrationService } from "./integration.service.js";
 import { IntegrationController } from "./integration.controller.js";
 import { SiteService } from "./site.service.js";
@@ -116,6 +117,7 @@ import { ExternalAccessController } from "./external-access.controller.js";
     DocumentService,
     RevisionService,
     ReviewService,
+    ReviewRoutingService,
     ClientPortalIdentityService,
     ClientPortalAccessService,
     ClientPortalScopeService,

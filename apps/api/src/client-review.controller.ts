@@ -10,7 +10,7 @@ const uuid = z.uuid();
 const reason = z.string().trim().min(3).max(1000);
 const packageCreate = z.object({
   title: z.string().trim().min(1).max(160), reason,
-  items: z.array(z.object({ taskId: uuid, expectedTaskVersion: z.number().int().positive(), revisionId: uuid.optional(), label: z.string().trim().min(1).max(160) }).strict()).min(1).max(100)
+  items: z.array(z.object({ taskId: uuid, expectedTaskVersion: z.number().int().positive(), revisionId: uuid.optional(), workSubmissionId: uuid.optional(), label: z.string().trim().min(1).max(160) }).strict()).min(1).max(100)
 }).strict();
 const classify = z.object({ category: z.enum(["PREFERENCE_NEW_REQUIREMENT", "EMPLOYEE_WORK_ERROR"]), expectedVersion: z.number().int().positive(), reason }).strict();
 const correction = z.object({ ownerEmployeeId: uuid, reason }).strict();

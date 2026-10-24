@@ -1,0 +1,48 @@
+/* Bounded presentation refinements, composed over the existing Sense tokens. */
+.sense-skip-link { position:fixed; z-index:2000; top:8px; left:12px; transform:translateY(-180%); padding:12px 18px; border-radius:8px; background:var(--sense-pine,#244f43); color:white; font-weight:700; }
+.sense-skip-link:focus { transform:none; outline:3px solid var(--sense-focus,#8c6b30); outline-offset:3px; }
+main:focus { outline:none; }
+main :is(h1,h2)[tabindex="-1"]:focus { outline:2px solid var(--sense-focus,#8c6b30); outline-offset:5px; }
+.task-header h1 { margin:0; font-size:clamp(1.6rem,3vw,2rem); line-height:1.2; }
+.project-heading h1 { margin:0; font-size:clamp(1.6rem,3vw,2rem); }
+.dashboard-heading h1 { margin:0; font-size:clamp(1.6rem,3vw,2rem); line-height:1.2; }
+.task-composer-lock { display:grid; gap:16px; min-width:0; margin:0; padding:0; border:0; }
+.task-composer-lock label { min-width:0; }
+.task-composer-lock label small { display:block; margin-top:6px; color:var(--sense-ink-muted,#59685f); font-size:12px; line-height:1.5; }
+.task-composer-lock :is(input,select,textarea)[aria-invalid="true"] { border-color:#9b3b2d; }
+.task-field-error { margin:0; color:#883526; font-size:13px; line-height:1.5; }
+.task-error-summary { padding:14px; border:1px solid #bc6c5d; border-radius:9px; background:#fff4ef; color:#6c3025; }
+.task-error-summary ul { margin:8px 0 0; padding-left:20px; }
+.task-error-summary a { color:inherit; text-underline-offset:3px; }
+.task-optional-planning { padding:12px 14px; border:1px solid var(--sense-border,#e8e8e2); border-radius:9px; }
+.task-optional-planning>summary { min-height:44px; display:list-item; align-content:center; cursor:pointer; font-weight:650; }
+.task-optional-planning[open]>:not(summary) { margin-top:14px; }
+.task-completion-help { padding:12px 14px; border-left:3px solid var(--sense-pine,#244f43); background:var(--sense-surface-active,#edf3ed); line-height:1.6; }
+.session-history { margin-top:20px; padding-top:12px; border-top:1px solid var(--sense-border,#e8e8e2); }
+.session-history>summary { min-height:44px; align-content:center; cursor:pointer; font-weight:650; }
+.settings-section-navigation { grid-template-columns:minmax(180px,1fr) minmax(0,3fr); padding:12px 0; border-block:1px solid var(--sense-border,#e8e8e2); }
+.settings-section-navigation section { display:flex; flex-wrap:wrap; align-content:flex-start; align-items:center; gap:4px 12px; }
+.settings-section-navigation h2 { flex-basis:100%; margin:0 0 4px; font-size:12px; }
+.settings-section-navigation a { display:inline-flex; min-height:44px; align-items:center; margin:0; padding:6px 8px; font-size:14px; }
+.project-template-disclosure { margin:12px 0 20px; padding:12px; border:1px solid var(--sense-border,#e8e8e2); border-radius:9px; }
+.project-template-disclosure>summary { min-height:44px; align-content:center; cursor:pointer; font-weight:650; }
+.project-relationships { display:grid; gap:12px; min-width:0; }
+.project-relationships input,.project-relationships select { min-height:44px; width:100%; min-width:0; }
+.project-relationships .relationship-search { display:grid; gap:8px; }
+.project-relationships p { margin:0; font-size:13px; line-height:1.5; }
+/* Never shrink meaningful dashboard evidence to fit a card. */
+#root .dashboard-workspace :is(.dv-task-mix-label,.dv-mix-strip-key,.dv-summary-top,.dv-summary-top strong,.dv-summary-cue,.dv-summary-freshness,.dv-section-heading>span,.dv-widget-head p,.dv-widget-foot,.dv-essentials-heading p,.dv-decisions-chip-label,.dv-decisions-section-label,.dv-review-rounds-head strong,.dv-project-signal,.dv-project-meta,.dv-project-name,.dv-project-link,.dv-attention-head p,.dv-attention-meta,.dv-attention-due,.dv-attention-chip,.dv-perf-meta,.dv-perf-meta small,.dv-perf-foot,.dv-performance-component,.dv-performance-component strong,.dv-time-status,.dv-source-loading) { font-size:12px; line-height:1.5; }
+#root .dashboard-workspace :is(.dv-summary-card,.dv-project-chip,.dv-widget-head,.dv-attention-row) { height:auto; min-width:0; }
+#root .dashboard-workspace .dv-task-mix-label { white-space:normal; }
+#root .dashboard-workspace .dv-time-field { font-size:13px; }
+#root .dashboard-workspace .dv-time-field :is(input,select), #root .dashboard-workspace .dv-performance-select select { font-size:14px; min-height:44px; }
+#root .dashboard-workspace :is(.dv-time-controls button,.dv-time-idle>button,.dv-attention-actions button,.dv-attention-actions a) { font-size:13px; min-height:44px; }
+@media(max-width:700px) {
+  .settings-section-navigation { grid-template-columns:1fr; gap:10px; }
+  .task-create-dialog :is(input,select,textarea) { font-size:16px; }
+  #root .dashboard-workspace .dv-time-field :is(input,select), #root .dashboard-workspace .dv-performance-select select { font-size:16px; }
+  .task-form-grid { grid-template-columns:1fr; }
+}
+
+.project-heading-actions { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+.project-heading-actions button { min-height:44px; }

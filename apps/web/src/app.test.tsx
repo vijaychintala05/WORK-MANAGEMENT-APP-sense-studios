@@ -286,8 +286,8 @@ describe("identity authentication shell", () => {
 
     expect(screen.getByRole("status")).toHaveTextContent(/Checking your session/);
     expect(await screen.findByRole("heading", { name: "You’re signed in." })).toBeInTheDocument();
-    expect(screen.getByText("owner@example.test")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Projects", level: 2 })).toBeInTheDocument();
+    expect(within(screen.getByRole("main")).getByText("owner@example.test")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Projects", level: 1 })).toBeInTheDocument();
   });
 
   it("runs options, browser assertion, verification, and restores the new session", async () => {

@@ -46,6 +46,7 @@ test("Owner applies a versioned template and required milestone gates survive re
     await page.goto("/workspace");
     const workspace = page.locator(".project-workspace");
     await workspace.getByLabel("Project branch").selectOption(branchId);
+    await workspace.getByText("Project template (optional)", { exact: true }).click();
     const templates = workspace.locator(".project-template-panel");
     await templates.getByRole("button", { name: "Create template", exact: true }).click();
     const form = templates.locator(".template-form");

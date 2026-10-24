@@ -49,7 +49,7 @@ export function buildRelease(root, revision) {
   const precache=inventory(path.join(release,'web')).files.filter(row=>row.path==='index.html'||row.path.startsWith('assets/')).map(row=>({url:'/'+row.path,sha256:row.sha256}));
   atomicJson(path.join(release,'web/staging-precache.json'),{buildId,files:precache});
   const {name,user,host,port,oid,system}=setting.runtime.database;
-  const manifest={schemaVersion:1,...identity,node:{version:process.versions.node,sha256:fileHash(path.join(runtime,'node.exe'))},database:{name,user,host,port,oid,system},migrations,...inventory(release)};
+  const manifest={schemaVersion:1,...identity,node:{version:process.versions.node,sha256:fileHash(path.join(runtime,'node.exe'))},database:{name,user,host,port,oid,system},...(migrations.length===120?{migrationProfile:'task-review-work-routing-20261023'}:{}),migrations,...inventory(release)};
   atomicJson(path.join(release,'private-manifest.json'),manifest);verifyRelease(release,manifest);
   atomicJson(source+'.receipt.json',{commit,buildId,builtAt,release,manifestSha256:fileHash(path.join(release,'private-manifest.json')),status:'BUILT_NOT_PROMOTED'});
   return {commit,buildId,release};
